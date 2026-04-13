@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(export PATH=\"/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH\")",
+      "Read(//opt/homebrew/bin/**)",
+      "Read(//Users/fherms/.nvm/versions/**)",
+      "Read(//opt/homebrew/**)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\")",
+      "Bash(export PATH=\"/usr/local/bin:$PATH\")",
+      "Bash(npm install:*)",
+      "Bash(npm cache:*)",
+      "Bash(ls /var/folders/nn/y68sl4h97v55j2bgx2mn7tlm0000gn/T/*.png)",
+      "WebFetch(domain:spur-repo-00052798.figma.site)",
+      "WebFetch(domain:cdn.figma.com)",
+      "Bash(npm run:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s --max-time 3 http://127.0.0.1:3845/mcp)",
+      "Bash(curl -s --max-time 5 -X POST http://127.0.0.1:3845/mcp -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}},\"id\":1}')",
+      "Bash(curl -s --max-time 5 -X POST http://127.0.0.1:3845/mcp -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}},\"id\":1}')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); projects=d.get\\('projects',{}\\); [print\\(k, json.dumps\\(v.get\\('mcpServers',{}\\), indent=2\\)\\) for k,v in projects.items\\(\\) if v.get\\('mcpServers'\\)]\")",
+      "Bash(curl -s -N -H \"Accept: text/event-stream\" -H \"Content-Type: application/json\" -X POST http://127.0.0.1:3845/mcp -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}')",
+      "Bash(curl -s -H \"Content-Type: application/json\" -X POST http://127.0.0.1:3845/mcp -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}')",
+      "Bash(curl -s -H \"Content-Type: application/json\" -X POST http://127.0.0.1:3845/mcp -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}}}')",
+      "Bash(curl -s -H \"Content-Type: application/json\" -H \"Accept: application/json, text/event-stream\" -X POST http://127.0.0.1:3845/mcp -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}}}')",
+      "Bash(ls .env*)",
+      "Bash(git config:*)",
+      "Bash(brew install:*)",
+      "Bash(npx vercel:*)",
+      "Read(//private/tmp/pm-nerds/**)",
+      "Bash(rm -rf .vercel)",
+      "Bash(rm -f vercel.json)",
+      "Bash(open -a \"GitHub Desktop\" \"/Users/fherms/IONOS HiDrive/Entreprenerds/02_intern/01_PM-Tool/PM-Nerds\")",
+      "Bash(ls ~/Library/Keychain*)",
+      "Bash(security find-internet-password:*)"
+    ]
+  }
+}
