@@ -10,9 +10,10 @@ const avatarColors = ["#6366f1", "#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#8
 interface Props {
   profiles: Profile[];
   currentProfile: Profile | null;
+  currentEmail: string | null;
 }
 
-export default function TeamClient({ profiles: initial, currentProfile }: Props) {
+export default function TeamClient({ profiles: initial, currentProfile, currentEmail }: Props) {
   const [profiles, setProfiles] = useState(initial);
 
   // Invite modal
@@ -163,6 +164,9 @@ export default function TeamClient({ profiles: initial, currentProfile }: Props)
                   <p className="font-medium text-sm">
                     {myProfile?.full_name || currentProfile?.full_name || "(kein Name)"}
                   </p>
+                  {currentEmail && (
+                    <p className="text-xs text-muted-foreground">{currentEmail}</p>
+                  )}
                   <p className="text-xs text-muted-foreground capitalize">{currentProfile?.role}</p>
                 </div>
                 <button

@@ -20,5 +20,11 @@ export default async function TeamPage() {
     supabase.from("profiles").select("*").eq("id", user!.id).single(),
   ]);
 
-  return <TeamClient profiles={profiles ?? []} currentProfile={currentProfile} />;
+  return (
+    <TeamClient
+      profiles={profiles ?? []}
+      currentProfile={currentProfile}
+      currentEmail={user!.email ?? null}
+    />
+  );
 }
