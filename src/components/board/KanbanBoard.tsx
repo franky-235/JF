@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -30,6 +30,7 @@ interface Props {
 export default function KanbanBoard({ columns: initialColumns, projectId, profiles }: Props) {
   const [columns, setColumns] = useState(initialColumns);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const localSaveRef = useRef(false);
   const [modalTask, setModalTask] = useState<Task | null>(null);
   const [modalColumnId, setModalColumnId] = useState<string | null>(null);
   const [showAddColumn, setShowAddColumn] = useState(false);
@@ -40,13 +41,16 @@ export default function KanbanBoard({ columns: initialColumns, projectId, profil
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Supabase Realtime
+  // Supabase Realtime — only reload for changes made by other users
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
       .channel(`board-${projectId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `project_id=eq.${projectId}` },
-        () => { window.location.reload(); }
+        () => {
+          if (localSaveRef.current) return;
+          window.location.reload();
+        }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -90,20 +94,23 @@ export default function KanbanBoard({ columns: initialColumns, projectId, profil
     if (!activeColId || !overColId) return;
 
     const supabase = createClient();
+    localSaveRef.current = true;
 
     if (activeColId === overColId) {
       const col = columns.find((c) => c.id === activeColId)!;
       const oldIdx = col.tasks.findIndex((t) => t.id === active.id);
       const newIdx = col.tasks.findIndex((t) => t.id === over.id);
-      if (oldIdx === newIdx) return;
+      if (oldIdx === newIdx) { localSaveRef.current = false; return; }
       const reordered = arrayMove(col.tasks, oldIdx, newIdx);
       setColumns((prev) => prev.map((c) => c.id === activeColId ? { ...c, tasks: reordered } : c));
       await Promise.all(reordered.map((t, i) => supabase.from("tasks").update({ position: i }).eq("id", t.id)));
     } else {
       const task = columns.find((c) => c.id === activeColId)?.tasks.find((t) => t.id === active.id);
-      if (!task) return;
+      if (!task) { localSaveRef.current = false; return; }
       await supabase.from("tasks").update({ column_id: overColId, position: 9999 }).eq("id", task.id);
     }
+
+    setTimeout(() => { localSaveRef.current = false; }, 2000);
   }
 
   async function handleAddColumn() {
@@ -123,6 +130,8 @@ export default function KanbanBoard({ columns: initialColumns, projectId, profil
   }
 
   function handleTaskSaved(task: Task, isNew: boolean) {
+    localSaveRef.current = true;
+    setTimeout(() => { localSaveRef.current = false; }, 2000);
     setColumns((prev) => prev.map((col) => {
       if (isNew && col.id === task.column_id) {
         return { ...col, tasks: [...col.tasks, { ...task, profiles: profiles.find((p) => p.id === task.assignee_id) ?? null }] };
@@ -137,6 +146,8 @@ export default function KanbanBoard({ columns: initialColumns, projectId, profil
   }
 
   function handleTaskDeleted(taskId: string) {
+    localSaveRef.current = true;
+    setTimeout(() => { localSaveRef.current = false; }, 2000);
     setColumns((prev) => prev.map((col) => ({ ...col, tasks: col.tasks.filter((t) => t.id !== taskId) })) as typeof prev);
     setModalTask(null);
     setModalColumnId(null);

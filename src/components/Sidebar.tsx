@@ -142,20 +142,17 @@ export default function Sidebar({
       {/* User */}
       <div className="px-3 py-4" style={{ borderTop: "1px solid hsl(240 5% 18%)" }}>
         <div className="flex items-center gap-3 px-2 py-2 rounded-lg">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm shrink-0"
-            style={{ background: "#6366f1", color: "white" }}
-          >
+          <Link href="/team" className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm shrink-0 hover:opacity-80 transition-opacity" style={{ background: "#6366f1", color: "white" }} title="Profil bearbeiten">
             {profile?.full_name?.[0]?.toUpperCase() ?? "?"}
-          </div>
-          <div className="flex-1 min-w-0">
+          </Link>
+          <Link href="/team" className="flex-1 min-w-0 hover:opacity-80 transition-opacity">
             <p className="text-sm font-medium truncate text-white">
               {profile?.full_name || "Benutzer"}
             </p>
             <p className="text-xs capitalize" style={{ color: "hsl(240 5% 50%)" }}>
               {profile?.role ?? "member"}
             </p>
-          </div>
+          </Link>
           <button
             onClick={handleLogout}
             className="transition-colors hover:text-red-400"
