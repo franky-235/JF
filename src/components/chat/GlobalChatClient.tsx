@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { MessageSquare } from "lucide-react";
 import ChatWindow from "./ChatWindow";
 import type { Profile } from "@/types";
 
@@ -22,7 +23,8 @@ interface Props {
   profiles: Profile[];
 }
 
-const dotColors = ["#6366f1", "#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+const userColors = ["#6366f1", "#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+const projectColors = ["#6366f1", "#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
 export default function GlobalChatClient({
   projects,
@@ -35,38 +37,36 @@ export default function GlobalChatClient({
   const activeProject = projects.find((p) => p.id === activeProjectId);
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full bg-white rounded-xl border border-slate-200 overflow-hidden" style={{ height: "calc(100vh - 128px)" }}>
       {/* Left: project list */}
-      <div className="w-72 border-r flex flex-col bg-card shrink-0">
-        <div className="px-4 py-4 border-b">
-          <h2 className="font-semibold text-sm flex items-center gap-2">
-            <span>💬</span> Projekt Chats
+      <div className="w-64 flex-shrink-0 bg-slate-50 border-r border-slate-200 flex flex-col">
+        <div className="px-4 py-4 border-b border-slate-200">
+          <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" style={{ color: "#22d3ee" }} />
+            Projekt Chats
           </h2>
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
           {projects.map((project, i) => {
             const isActive = project.id === activeProjectId;
-            const color = dotColors[i % dotColors.length];
+            const color = projectColors[i % projectColors.length];
             return (
               <button
                 key={project.id}
                 onClick={() => router.push(`/chat?project=${project.id}`)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                  isActive ? "bg-primary/10 border-r-2 border-primary" : "hover:bg-accent"
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isActive ? "border-r-2" : "hover:bg-slate-100"}`}
+                style={isActive ? { backgroundColor: "#22d3ee18", borderRightColor: "#22d3ee" } : {}}
               >
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ background: color }}
-                />
-                <div className="min-w-0">
-                  <p className={`text-sm font-medium truncate ${isActive ? "text-primary" : ""}`}>
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-sm font-medium truncate"
+                    style={isActive ? { color: "#0e7490" } : { color: "#334155" }}
+                  >
                     {project.name}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {profiles.length} Mitglieder
-                  </p>
+                  <p className="text-xs text-slate-400">{profiles.length} Mitglieder</p>
                 </div>
               </button>
             );
@@ -74,25 +74,26 @@ export default function GlobalChatClient({
         </div>
 
         {/* Online members */}
-        <div className="px-4 py-3 border-t">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Team Online
-          </p>
+        <div className="border-t border-slate-200 p-3">
+          <p className="text-xs text-slate-400 font-medium mb-2">Team Online</p>
           <div className="space-y-1.5">
             {profiles.slice(0, 5).map((profile, i) => {
-              const color = dotColors[i % dotColors.length];
+              const color = userColors[i % userColors.length];
+              const isMe = profile.id === currentUserId;
               return (
                 <div key={profile.id} className="flex items-center gap-2">
                   <div className="relative">
                     <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold text-white"
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-semibold"
                       style={{ background: color }}
                     >
                       {profile.full_name?.[0]?.toUpperCase() ?? "?"}
                     </div>
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border border-card" />
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-50 ${isMe ? "bg-emerald-400" : "bg-slate-300"}`}
+                    />
                   </div>
-                  <span className="text-xs">{profile.full_name?.split(" ")[0]}</span>
+                  <span className="text-xs text-slate-600 truncate">{profile.full_name?.split(" ")[0]}</span>
                 </div>
               );
             })}
@@ -101,19 +102,17 @@ export default function GlobalChatClient({
       </div>
 
       {/* Right: chat area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Chat header */}
         {activeProject && (
-          <div className="flex items-center gap-3 px-6 py-4 border-b bg-card shrink-0">
+          <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-200 bg-white shrink-0">
             <div
-              className="w-2.5 h-2.5 rounded-full"
-              style={{ background: dotColors[projects.indexOf(activeProject) % dotColors.length] }}
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{ background: projectColors[projects.indexOf(activeProject) % projectColors.length] }}
             />
             <div>
-              <h2 className="font-semibold text-sm">{activeProject.name}</h2>
-              <p className="text-xs text-muted-foreground">
-                {profiles.length} Mitglieder · Projekt Chat
-              </p>
+              <h3 className="text-sm font-semibold text-slate-800">{activeProject.name}</h3>
+              <p className="text-xs text-slate-400">{profiles.length} Mitglieder · Projekt Chat</p>
             </div>
           </div>
         )}
@@ -123,10 +122,12 @@ export default function GlobalChatClient({
             projectId={activeProjectId}
             initialMessages={initialMessages}
             currentUserId={currentUserId}
+            projectName={activeProject?.name}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <p>Kein Projekt ausgewählt.</p>
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-400">
+            <MessageSquare className="w-10 h-10 text-slate-200" />
+            <p className="text-sm">Kein Projekt ausgewählt.</p>
           </div>
         )}
       </div>
