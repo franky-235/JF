@@ -84,15 +84,15 @@ export default function TeamClient({ profiles: initial, currentProfile }: Props)
           <h1 className="text-xl font-bold">Team</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{profiles.length}/{maxSeats} Teammitglieder</p>
         </div>
-        <button
-          onClick={() => { setShowInviteModal(true); setInviteMsg(null); setInviteEmail(""); }}
-          disabled={!isAdmin}
-          title={!isAdmin ? "Nur Admins können Mitglieder einladen" : undefined}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <UserPlus className="w-4 h-4" />
-          Mitglied einladen
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => { setShowInviteModal(true); setInviteMsg(null); setInviteEmail(""); }}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition"
+          >
+            <UserPlus className="w-4 h-4" />
+            Mitglied einladen
+          </button>
+        )}
       </div>
 
       {/* Capacity bar */}
