@@ -24,7 +24,8 @@ export default function TeamClient({ profiles: initial, currentProfile, currentE
 
   // Profile editing
   const [editingName, setEditingName] = useState(false);
-  const [nameValue, setNameValue] = useState(currentProfile?.full_name ?? "");
+  const [firstName, setFirstName] = useState(currentProfile?.full_name?.split(" ")[0] ?? "");
+  const [lastName, setLastName] = useState(currentProfile?.full_name?.split(" ").slice(1).join(" ") ?? "");
   const [savingName, setSavingName] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
 
@@ -54,12 +55,13 @@ export default function TeamClient({ profiles: initial, currentProfile, currentE
   }
 
   async function handleSaveName() {
-    if (!nameValue.trim() || !currentProfile) return;
+    const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+    if (!fullName || !currentProfile) return;
     setSavingName(true);
     const supabase = createClient();
-    await supabase.from("profiles").update({ full_name: nameValue.trim() }).eq("id", currentProfile.id);
+    await supabase.from("profiles").update({ full_name: fullName }).eq("id", currentProfile.id);
     setProfiles((prev) =>
-      prev.map((p) => p.id === currentProfile.id ? { ...p, full_name: nameValue.trim() } : p)
+      prev.map((p) => p.id === currentProfile.id ? { ...p, full_name: fullName } : p)
     );
     setSavingName(false);
     setEditingName(false);
@@ -131,32 +133,43 @@ export default function TeamClient({ profiles: initial, currentProfile, currentE
             className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-lg shrink-0"
             style={{ background: avatarColors[0] }}
           >
-            {(nameValue || currentProfile?.full_name || "?")?.[0]?.toUpperCase()}
+            {([firstName, lastName].filter(Boolean).join(" ") || currentProfile?.full_name || "?")?.[0]?.toUpperCase()}
           </div>
           <div className="flex-1">
             {editingName ? (
-              <div className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={nameValue}
-                  onChange={(e) => setNameValue(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(false); }}
-                  placeholder="Dein Name"
-                  className="flex-1 px-3 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
-                />
-                <button
-                  onClick={handleSaveName}
-                  disabled={savingName}
-                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition disabled:opacity-50"
-                >
-                  {savingName ? "..." : "Speichern"}
-                </button>
-                <button
-                  onClick={() => setEditingName(false)}
-                  className="px-3 py-1.5 border rounded-lg text-xs hover:bg-accent transition"
-                >
-                  Abbrechen
-                </button>
+              <div className="flex flex-col gap-2 flex-1">
+                <div className="flex gap-2">
+                  <input
+                    autoFocus
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(false); }}
+                    placeholder="Vorname"
+                    className="flex-1 px-3 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                  />
+                  <input
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(false); }}
+                    placeholder="Nachname"
+                    className="flex-1 px-3 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveName}
+                    disabled={savingName}
+                    className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition disabled:opacity-50"
+                  >
+                    {savingName ? "..." : "Speichern"}
+                  </button>
+                  <button
+                    onClick={() => setEditingName(false)}
+                    className="px-3 py-1.5 border rounded-lg text-xs hover:bg-accent transition"
+                  >
+                    Abbrechen
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -170,7 +183,12 @@ export default function TeamClient({ profiles: initial, currentProfile, currentE
                   <p className="text-xs text-muted-foreground capitalize">{currentProfile?.role}</p>
                 </div>
                 <button
-                  onClick={() => { setNameValue(currentProfile?.full_name ?? ""); setEditingName(true); }}
+                  onClick={() => {
+                    const name = currentProfile?.full_name ?? "";
+                    setFirstName(name.split(" ")[0] ?? "");
+                    setLastName(name.split(" ").slice(1).join(" ") ?? "");
+                    setEditingName(true);
+                  }}
                   className="ml-2 p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition"
                   title="Name bearbeiten"
                 >
