@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, FolderKanban, Pencil, Trash2, Calendar } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar, X, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Project, Customer } from "@/types";
 import { format } from "date-fns";
@@ -12,7 +12,6 @@ interface Props {
     customers: { id: string; name: string; company: string | null } | null;
     taskCount?: number;
     doneCount?: number;
-    memberCount?: number;
   })[];
   customers: Pick<Customer, "id" | "name" | "company">[];
 }
@@ -22,20 +21,26 @@ interface ProjectForm {
   description: string;
   customer_id: string;
   status: string;
-  start_date: string;
-  end_date: string;
+  color: string;
 }
 
-const emptyForm: ProjectForm = { name: "", description: "", customer_id: "", status: "active", start_date: "", end_date: "" };
+const COLORS = [
+  "#6366F1", "#0EA5E9", "#10B981", "#F59E0B",
+  "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6",
+  "#F97316", "#84CC16",
+];
 
-const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
-  active: { label: "Aktiv", bg: "bg-emerald-100", text: "text-emerald-700" },
-  completed: { label: "Abgeschlossen", bg: "bg-blue-100", text: "text-blue-700" },
-  archived: { label: "Archiviert", bg: "bg-gray-100", text: "text-gray-600" },
-  planning: { label: "Planung", bg: "bg-violet-100", text: "text-violet-700" },
+const emptyForm: ProjectForm = {
+  name: "", description: "", customer_id: "", status: "active", color: COLORS[0],
 };
 
-const projectColors = ["#6366f1", "#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+const statusConfig: Record<string, { label: string; classes: string }> = {
+  active: { label: "Aktiv", classes: "bg-emerald-100 text-emerald-700" },
+  completed: { label: "Abgeschlossen", classes: "bg-slate-100 text-slate-600" },
+  archived: { label: "Archiviert", classes: "bg-gray-100 text-gray-500" },
+  planning: { label: "Planung", classes: "bg-blue-100 text-blue-700" },
+  "on-hold": { label: "Pausiert", classes: "bg-amber-100 text-amber-700" },
+};
 
 export default function ProjectsClient({ projects: initial, customers }: Props) {
   const [projects, setProjects] = useState(initial);
@@ -47,14 +52,20 @@ export default function ProjectsClient({ projects: initial, customers }: Props) 
 
   function openCreate() {
     setEditProject(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, color: COLORS[projects.length % COLORS.length] });
     setError("");
     setShowModal(true);
   }
 
   function openEdit(p: (typeof initial)[0]) {
     setEditProject(p);
-    setForm({ name: p.name, description: p.description ?? "", customer_id: p.customer_id ?? "", status: p.status, start_date: "", end_date: "" });
+    setForm({
+      name: p.name,
+      description: p.description ?? "",
+      customer_id: p.customer_id ?? "",
+      status: p.status,
+      color: (p as any).color || COLORS[0],
+    });
     setError("");
     setShowModal(true);
   }
@@ -68,15 +79,26 @@ export default function ProjectsClient({ projects: initial, customers }: Props) 
       description: form.description || null,
       customer_id: form.customer_id || null,
       status: form.status,
+      color: form.color,
     };
 
     if (editProject) {
-      const { data, error } = await supabase.from("projects").update(payload).eq("id", editProject.id).select("*, customers(id, name, company)").single();
+      const { data, error } = await supabase
+        .from("projects")
+        .update(payload)
+        .eq("id", editProject.id)
+        .select("*, customers(id, name, company)")
+        .single();
       if (error) { setError(error.message); setSaving(false); return; }
       setProjects((prev) => prev.map((p) => p.id === editProject.id ? { ...p, ...data } : p));
     } else {
-      const { data, error } = await supabase.from("projects").insert(payload).select("*, customers(id, name, company)").single();
+      const { data, error } = await supabase
+        .from("projects")
+        .insert(payload)
+        .select("*, customers(id, name, company)")
+        .single();
       if (error) { setError(error.message); setSaving(false); return; }
+      // Create default task columns
       await supabase.from("task_columns").insert([
         { project_id: data.id, title: "Backlog", position: 0, color: "#94a3b8" },
         { project_id: data.id, title: "To Do", position: 1, color: "#6366f1" },
@@ -84,7 +106,7 @@ export default function ProjectsClient({ projects: initial, customers }: Props) 
         { project_id: data.id, title: "Review", position: 3, color: "#8b5cf6" },
         { project_id: data.id, title: "Erledigt", position: 4, color: "#10b981" },
       ]);
-      setProjects((prev) => [{ ...data, taskCount: 0, doneCount: 0, memberCount: 0 }, ...prev]);
+      setProjects((prev) => [{ ...data, taskCount: 0, doneCount: 0 }, ...prev]);
     }
     setSaving(false);
     setShowModal(false);
@@ -97,163 +119,200 @@ export default function ProjectsClient({ projects: initial, customers }: Props) 
     setProjects((prev) => prev.filter((p) => p.id !== id));
   }
 
-  const activeCount = projects.filter((p) => p.status === "active").length;
-
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Projekte</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{activeCount} aktive Projekte</p>
+          <h1 className="text-xl font-bold text-slate-800">Projekte</h1>
+          <p className="text-sm text-slate-500">{projects.length} Projekte</p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+          style={{ backgroundColor: "#00ffff", color: "#000000" }}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "#00e5e5")}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "#00ffff")}
         >
           <Plus className="w-4 h-4" /> Neues Projekt
         </button>
       </div>
 
-      {/* Projects grid */}
-      <div className="grid grid-cols-2 gap-4">
-        {projects.length === 0 && (
-          <div className="col-span-2 text-center py-16 text-muted-foreground border rounded-xl bg-card">
-            <FolderKanban className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>Noch keine Projekte. Erstelle dein erstes Projekt!</p>
-          </div>
-        )}
-
-        {projects.map((p, i) => {
-          const color = projectColors[i % projectColors.length];
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {projects.map((p) => {
+          const color = (p as any).color || COLORS[0];
           const s = statusConfig[p.status] ?? statusConfig.active;
           const taskCount = p.taskCount ?? 0;
           const doneCount = p.doneCount ?? 0;
           const pct = taskCount > 0 ? Math.round((doneCount / taskCount) * 100) : 0;
-          const initial = p.name[0]?.toUpperCase() ?? "P";
 
           return (
-            <div
-              key={p.id}
-              className="bg-card border rounded-xl overflow-hidden hover:shadow-md transition-shadow"
-              style={{ borderTop: `3px solid ${color}` }}
-            >
+            <div key={p.id} className="bg-white rounded-xl border border-slate-200 hover:shadow-md transition-all overflow-hidden">
+              {/* Color bar */}
+              <div className="h-1.5" style={{ backgroundColor: color }} />
               <div className="p-5">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-white text-sm shrink-0"
-                      style={{ background: color }}
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                      style={{ backgroundColor: color }}
                     >
-                      {initial}
+                      {p.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <h2 className="font-semibold text-sm">{p.name}</h2>
+                      <h3 className="text-base font-semibold text-slate-800">{p.name}</h3>
                       {p.customers?.name && (
-                        <p className="text-xs text-muted-foreground">{p.customers.name}</p>
+                        <p className="text-xs text-slate-400">{p.customers.name}</p>
                       )}
                     </div>
                   </div>
-                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium shrink-0 ${s.bg} ${s.text}`}>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${s.classes}`}>
                     {s.label}
                   </span>
                 </div>
 
-                {/* Description */}
                 {p.description && (
-                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{p.description}</p>
+                  <p className="text-sm text-slate-500 mb-4 leading-relaxed line-clamp-2">{p.description}</p>
                 )}
 
                 {/* Progress */}
-                <div className="mb-3">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-slate-500 mb-1.5">
                     <span>Fortschritt</span>
-                    <span>{doneCount}/{taskCount} Aufgaben ({pct}%)</span>
+                    <span className="font-medium">{doneCount}/{taskCount} Aufgaben ({pct}%)</span>
                   </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, background: color }}
-                    />
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
                   </div>
                 </div>
 
-                {/* Footer meta */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>
-                      {format(new Date(p.created_at), "d. MMM yyyy", { locale: de })}
-                    </span>
-                  </div>
+                <div className="flex items-center text-xs text-slate-400 mb-4">
+                  <Calendar className="w-3.5 h-3.5 mr-1" />
+                  {format(new Date(p.created_at), "d. MMM yyyy", { locale: de })}
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div className="flex border-t">
-                <button
-                  onClick={() => openEdit(p)}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:bg-accent transition-colors border-r"
-                >
-                  <Pencil className="w-3.5 h-3.5" /> Bearbeiten
-                </button>
-                <button
-                  onClick={() => handleDelete(p.id)}
-                  className="px-4 py-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    onClick={() => openEdit(p)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"
+                  >
+                    <Pencil className="w-3 h-3" /> Bearbeiten
+                  </button>
+                  <button
+                    onClick={() => handleDelete(p.id)}
+                    className="px-3 py-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           );
         })}
 
-        {/* New project ghost card */}
+        {/* Add placeholder */}
         <button
           onClick={openCreate}
-          className="border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary hover:text-primary transition-colors min-h-[160px]"
+          className="border-2 border-dashed border-slate-200 rounded-xl p-8 flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-slate-600 transition-all min-h-[200px]"
+          onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.borderColor = "#00ffff")}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.borderColor = "")}
         >
-          <Plus className="w-6 h-6" />
-          <span className="text-sm">Neues Projekt erstellen</span>
+          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
+            <Plus className="w-6 h-6" />
+          </div>
+          <span className="text-sm font-medium">Neues Projekt erstellen</span>
         </button>
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h2 className="text-lg font-semibold mb-5">{editProject ? "Projekt bearbeiten" : "Neues Projekt"}</h2>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-slate-800">
+                {editProject ? "Projekt bearbeiten" : "Neues Projekt"}
+              </h2>
+              <button onClick={() => setShowModal(false)}>
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1.5">Projektname *</label>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Website Relaunch" />
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Projektname *</label>
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  placeholder="z.B. Website Relaunch"
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5">Beschreibung</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" placeholder="Kurze Projektbeschreibung..." />
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Beschreibung</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={2}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                  placeholder="Kurze Projektbeschreibung..."
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Status</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    className="w-full border border-slate-200 rounded-lg px-2 py-2 text-sm focus:outline-none"
+                  >
+                    <option value="planning">Planung</option>
+                    <option value="active">Aktiv</option>
+                    <option value="on-hold">Pausiert</option>
+                    <option value="completed">Abgeschlossen</option>
+                    <option value="archived">Archiviert</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Kunde</label>
+                  <select
+                    value={form.customer_id}
+                    onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
+                    className="w-full border border-slate-200 rounded-lg px-2 py-2 text-sm focus:outline-none"
+                  >
+                    <option value="">Kein Kunde</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}{c.company ? ` (${c.company})` : ""}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5">Kunde</label>
-                <select value={form.customer_id} onChange={(e) => setForm({ ...form, customer_id: e.target.value })} className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option value="">Kein Kunde</option>
-                  {customers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.company ? ` (${c.company})` : ""}</option>)}
-                </select>
+                <label className="text-xs font-medium text-slate-600 mb-2 block">Projektfarbe</label>
+                <div className="flex flex-wrap gap-2">
+                  {COLORS.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setForm({ ...form, color: c })}
+                      className={`w-7 h-7 rounded-full transition-all ${form.color === c ? "ring-2 ring-offset-2 ring-slate-400 scale-110" : "hover:scale-105"}`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Status</label>
-                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option value="active">Aktiv</option>
-                  <option value="planning">Planung</option>
-                  <option value="completed">Abgeschlossen</option>
-                  <option value="archived">Archiviert</option>
-                </select>
-              </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && <p className="text-sm text-red-600">{error}</p>}
             </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-2 border rounded-lg text-sm hover:bg-accent transition">Abbrechen</button>
-              <button onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90 transition disabled:opacity-50">
-                {saving ? "Speichern..." : "Speichern"}
+
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50">
+                Abbrechen
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-1 px-4 py-2 text-sm rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                style={{ backgroundColor: "#00ffff", color: "#000000" }}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Speichern
               </button>
             </div>
           </div>

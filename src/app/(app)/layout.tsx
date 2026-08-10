@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Sidebar from "@/components/Sidebar";
-import Topbar from "@/components/Topbar";
+import AppLayoutClient from "@/components/AppLayoutClient";
 
 export default async function AppLayout({
   children,
@@ -17,16 +16,12 @@ export default async function AppLayout({
 
   const [{ data: profile }, { data: projects }] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single(),
-    supabase.from("projects").select("id, name, status").order("created_at", { ascending: false }),
+    supabase.from("projects").select("id, name, color").order("created_at", { ascending: false }),
   ]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar profile={profile} projects={projects ?? []} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar profile={profile} />
-        <main className="flex-1 overflow-auto">{children}</main>
-      </div>
-    </div>
+    <AppLayoutClient profile={profile} projects={projects ?? []}>
+      {children}
+    </AppLayoutClient>
   );
 }

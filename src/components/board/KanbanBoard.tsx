@@ -31,6 +31,7 @@ export default function KanbanBoard({ columns: initialColumns, projectId, profil
   const [columns, setColumns] = useState(initialColumns);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const localSaveRef = useRef(false);
+  const dragStartColRef = useRef<string | null>(null);
   const [modalTask, setModalTask] = useState<Task | null>(null);
   const [modalColumnId, setModalColumnId] = useState<string | null>(null);
   const [showAddColumn, setShowAddColumn] = useState(false);
@@ -64,6 +65,7 @@ export default function KanbanBoard({ columns: initialColumns, projectId, profil
     const col = findColumn(active.id as string);
     const task = col?.tasks.find((t) => t.id === active.id);
     setActiveTask(task ?? null);
+    dragStartColRef.current = col?.id ?? null;
   }
 
   function handleDragOver({ active, over }: DragOverEvent) {
@@ -88,26 +90,32 @@ export default function KanbanBoard({ columns: initialColumns, projectId, profil
     setActiveTask(null);
     if (!over) return;
 
-    const activeColId = findColumn(active.id as string)?.id;
-    const overColId = columns.find((c) => c.id === over.id)?.id
-      ?? findColumn(over.id as string)?.id;
-    if (!activeColId || !overColId) return;
+    // Use dragStartColRef as the true origin — findColumn returns the destination
+    // after handleDragOver already moved the task in state.
+    const originColId = dragStartColRef.current;
+    const currentColId = findColumn(active.id as string)?.id;
+    if (!originColId || !currentColId) return;
 
     const supabase = createClient();
     localSaveRef.current = true;
 
-    if (activeColId === overColId) {
-      const col = columns.find((c) => c.id === activeColId)!;
+    if (originColId !== currentColId) {
+      // Cross-column drop: state already updated by handleDragOver, just persist to DB
+      const task = columns.find((c) => c.id === currentColId)?.tasks.find((t) => t.id === active.id);
+      if (!task) { localSaveRef.current = false; return; }
+      await supabase.from("tasks").update({ column_id: currentColId, position: 9999 }).eq("id", task.id);
+    } else {
+      // Same-column reorder
+      const overColId = columns.find((c) => c.id === over.id)?.id
+        ?? findColumn(over.id as string)?.id;
+      if (!overColId || overColId !== currentColId) { localSaveRef.current = false; return; }
+      const col = columns.find((c) => c.id === currentColId)!;
       const oldIdx = col.tasks.findIndex((t) => t.id === active.id);
       const newIdx = col.tasks.findIndex((t) => t.id === over.id);
       if (oldIdx === newIdx) { localSaveRef.current = false; return; }
       const reordered = arrayMove(col.tasks, oldIdx, newIdx);
-      setColumns((prev) => prev.map((c) => c.id === activeColId ? { ...c, tasks: reordered } : c));
+      setColumns((prev) => prev.map((c) => c.id === currentColId ? { ...c, tasks: reordered } : c));
       await Promise.all(reordered.map((t, i) => supabase.from("tasks").update({ position: i }).eq("id", t.id)));
-    } else {
-      const task = columns.find((c) => c.id === activeColId)?.tasks.find((t) => t.id === active.id);
-      if (!task) { localSaveRef.current = false; return; }
-      await supabase.from("tasks").update({ column_id: overColId, position: 9999 }).eq("id", task.id);
     }
 
     setTimeout(() => { localSaveRef.current = false; }, 2000);

@@ -69,3 +69,35 @@ export interface Message {
   created_at: string;
   profile?: Profile;
 }
+
+export interface JourfixArea {
+  id: string;
+  name: string;
+  position: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JourfixWeek {
+  id: string;
+  week_start: string;
+  created_at: string;
+}
+
+export interface JourfixTask {
+  id: string;
+  week_id: string;
+  area_id: string;
+  title: string;
+  assignee_id: string | null;
+  done: boolean;
+  carried_over_count: number;
+  origin_task_id: string | null;
+  linked_task_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  assignee?: Profile | null;
+  linked_task?: { id: string; title: string; project_id: string } | null;
+}

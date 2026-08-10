@@ -5,9 +5,9 @@ import GlobalBoardHeader from "@/components/board/GlobalBoardHeader";
 export default async function GlobalBoardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ project?: string }>;
+  searchParams: Promise<{ project?: string; priority?: string }>;
 }) {
-  const { project: projectId } = await searchParams;
+  const { project: projectId, priority } = await searchParams;
   const supabase = await createClient();
 
   const { data: projects } = await supabase
@@ -33,7 +33,9 @@ export default async function GlobalBoardPage({
 
   const sortedColumns = (columns ?? []).map((col) => ({
     ...col,
-    tasks: (col.tasks ?? []).sort((a: any, b: any) => a.position - b.position),
+    tasks: (col.tasks ?? [])
+      .filter((t: any) => !priority || t.priority === priority)
+      .sort((a: any, b: any) => a.position - b.position),
   }));
 
   return (
@@ -43,6 +45,7 @@ export default async function GlobalBoardPage({
         activeProjectId={activeProjectId}
         taskCount={sortedColumns.reduce((acc, col) => acc + col.tasks.length, 0)}
         columnCount={sortedColumns.length}
+        activePriority={priority}
       />
       <div className="flex-1 overflow-hidden">
         {activeProjectId ? (

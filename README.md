@@ -11,6 +11,7 @@ Internes Projektmanagement-Tool für 4–10 Benutzer.
 - **Timeline** – Gantt-Ansicht der Aufgaben (Wochen-/Monatsansicht)
 - **Chat** – Pro-Projekt-Chat mit Supabase Realtime
 - **Kundenverwaltung** – CRUD + HubSpot-Sync (read-only)
+- **Jourfix** – Aufgabenbereiche mit wöchentlich neuen Reitern; offene Aufgaben werden automatisch übernommen und je nach Anzahl der Wochen farblich markiert (grün/gelb/orange/rot)
 - **Settings** – Profilbearbeitung, Teamverwaltung, Benutzereinladung
 
 ## Setup
@@ -40,7 +41,10 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 HUBSPOT_ACCESS_TOKEN=pat-na1-...   # Optional
+CRON_SECRET=...                    # Für /api/jourfix/rollover
 ```
+
+Für die Jourfix-Tabellen zusätzlich `supabase/migrations/002_jourfix_schema.sql` im SQL Editor ausführen.
 
 ### 4. Ersten Admin-Benutzer anlegen
 
@@ -65,7 +69,7 @@ npm run dev
 npx vercel --prod
 ```
 
-Env-Variablen in Vercel-Projekteinstellungen hinzufügen.
+Env-Variablen in Vercel-Projekteinstellungen hinzufügen (inkl. `CRON_SECRET`). Der wöchentliche Jourfix-Rollover läuft über den in `vercel.json` konfigurierten Cron-Job (montags 05:00 UTC) auf `/api/jourfix/rollover`.
 
 ## HubSpot-Integration
 
