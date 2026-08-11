@@ -180,6 +180,17 @@ export default function JourfixClient({
     setCreatingWeek(false);
   }
 
+  async function handleDeleteWeek(weekId: string) {
+    const supabase = createClient();
+    markLocalChange();
+    const { error } = await supabase.from("jourfix_weeks").delete().eq("id", weekId);
+    if (error) { alert(`Zeitraum konnte nicht gelöscht werden: ${error.message}`); return; }
+    if (selectedWeek?.id === weekId) {
+      router.push("/jourfix");
+    }
+    router.refresh();
+  }
+
   const tasksByArea = new Map<string, JourfixTask[]>();
   for (const task of tasks) {
     const list = tasksByArea.get(task.area_id) ?? [];
@@ -198,8 +209,10 @@ export default function JourfixClient({
         weeks={weeks}
         currentWeekStart={currentWeekStart}
         selectedWeekStart={selectedWeekStart}
+        isAdmin={isAdmin}
         onSelect={(weekStart) => router.push(`/jourfix?week=${weekStart}`)}
         onEnsureNextWeek={handleEnsureNextWeek}
+        onDeleteWeek={handleDeleteWeek}
         creatingWeek={creatingWeek}
       />
 

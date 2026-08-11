@@ -2,7 +2,7 @@
 
 import { format, getISOWeek, addDays } from "date-fns";
 import { de } from "date-fns/locale";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { JourfixWeek } from "@/types";
 
@@ -10,18 +10,20 @@ interface Props {
   weeks: JourfixWeek[];
   currentWeekStart: string;
   selectedWeekStart: string;
+  isAdmin: boolean;
   onSelect: (weekStart: string) => void;
   onEnsureNextWeek: () => void;
+  onDeleteWeek: (weekId: string) => void;
   creatingWeek: boolean;
 }
 
 function weekLabel(weekStart: string) {
   const start = new Date(`${weekStart}T00:00:00`);
   const end = addDays(start, 4);
-  return `KW ${getISOWeek(start)} · ${format(start, "dd.MM.", { locale: de })}–${format(end, "dd.MM.", { locale: de })}`;
+  return `KW ${getISOWeek(start)} · ${format(start, "dd.MM.", { locale: de })}–${format(end, "dd.MM.yyyy", { locale: de })}`;
 }
 
-export default function WeekTabs({ weeks, currentWeekStart, selectedWeekStart, onSelect, onEnsureNextWeek, creatingWeek }: Props) {
+export default function WeekTabs({ weeks, currentWeekStart, selectedWeekStart, isAdmin, onSelect, onEnsureNextWeek, onDeleteWeek, creatingWeek }: Props) {
   const sorted = [...weeks].sort((a, b) => a.week_start.localeCompare(b.week_start));
   const hasSelected = sorted.some((w) => w.week_start === selectedWeekStart);
 
@@ -31,17 +33,35 @@ export default function WeekTabs({ weeks, currentWeekStart, selectedWeekStart, o
         const isSelected = w.week_start === selectedWeekStart;
         const isCurrent = w.week_start === currentWeekStart;
         return (
-          <button
+          <div
             key={w.id}
-            onClick={() => onSelect(w.week_start)}
             className={cn(
-              "shrink-0 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition-colors",
+              "shrink-0 flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-lg text-sm whitespace-nowrap transition-colors",
               isSelected ? "bg-primary text-primary-foreground font-medium" : "text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
           >
-            {weekLabel(w.week_start)}
-            {isCurrent && <span className="ml-1.5 text-xs opacity-70">· aktuell</span>}
-          </button>
+            <button onClick={() => onSelect(w.week_start)} className="whitespace-nowrap">
+              {weekLabel(w.week_start)}
+              {isCurrent && <span className="ml-1.5 text-xs opacity-70">· aktuell</span>}
+            </button>
+            {isAdmin && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm(`Zeitraum ${weekLabel(w.week_start)} wirklich löschen? Alle Aufgaben dieser Woche werden entfernt.`)) {
+                    onDeleteWeek(w.id);
+                  }
+                }}
+                title="Zeitraum löschen"
+                className={cn(
+                  "p-0.5 rounded-md transition-colors",
+                  isSelected ? "hover:bg-black/10" : "hover:bg-destructive/10 hover:text-destructive"
+                )}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         );
       })}
       {!hasSelected && (
