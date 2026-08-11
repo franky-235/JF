@@ -105,7 +105,7 @@ export default function ChatWindow({ projectId, initialMessages, currentUserId, 
                       {!sameUser ? (
                         <div
                           className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-semibold mb-0.5"
-                          style={{ background: isOwn ? "#22d3ee" : "#94a3b8" }}
+                          style={{ background: isOwn ? "#00ffff" : "#94a3b8" }}
                         >
                           {msg.profile?.full_name?.[0]?.toUpperCase() ?? "?"}
                         </div>
@@ -128,7 +128,7 @@ export default function ChatWindow({ projectId, initialMessages, currentUserId, 
                               ? "text-black rounded-br-md"
                               : "bg-slate-100 text-slate-800 rounded-bl-md"
                           }`}
-                          style={isOwn ? { backgroundColor: "#22d3ee" } : {}}
+                          style={isOwn ? { backgroundColor: "#00ffff" } : {}}
                         >
                           {msg.content}
                         </div>
@@ -163,7 +163,7 @@ export default function ChatWindow({ projectId, initialMessages, currentUserId, 
             onClick={handleSend}
             disabled={!input.trim() || sending}
             className="p-1.5 text-black rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-            style={{ backgroundColor: "#22d3ee" }}
+            style={{ backgroundColor: "#00ffff" }}
           >
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>

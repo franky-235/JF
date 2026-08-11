@@ -63,41 +63,48 @@ export default function TaskModal({ task, columnId, projectId, profiles, onSave,
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-lg p-6">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold">{isNew ? "Neue Aufgabe" : "Aufgabe bearbeiten"}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-accent rounded-md transition">
+          <h2 className="text-lg font-semibold text-slate-800">{isNew ? "Neue Aufgabe" : "Aufgabe bearbeiten"}</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-md transition text-slate-400">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1.5">Titel *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Titel *</label>
             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Aufgabentitel" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none"
+              onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px #00ffff30")}
+              onBlur={(e) => (e.target.style.boxShadow = "")}
+              placeholder="Aufgabentitel" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5">Beschreibung</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Beschreibung</label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-              rows={3} className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" placeholder="Optionale Beschreibung..." />
+              rows={3}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none resize-none"
+              onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px #00ffff30")}
+              onBlur={(e) => (e.target.style.boxShadow = "")}
+              placeholder="Optionale Beschreibung..." />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5">Zuständig</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Zuständig</label>
               <select value={form.assignee_id} onChange={(e) => setForm({ ...form, assignee_id: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none">
                 <option value="">Nicht zugewiesen</option>
                 {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">Priorität</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Priorität</label>
               <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as any })}
-                className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none">
                 <option value="low">Niedrig</option>
                 <option value="medium">Mittel</option>
                 <option value="high">Hoch</option>
@@ -107,28 +114,39 @@ export default function TaskModal({ task, columnId, projectId, profiles, onSave,
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5">Startdatum</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Startdatum</label>
               <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none"
+                onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px #00ffff30")}
+                onBlur={(e) => (e.target.style.boxShadow = "")} />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">Fälligkeitsdatum</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Fälligkeitsdatum</label>
               <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none"
+                onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px #00ffff30")}
+                onBlur={(e) => (e.target.style.boxShadow = "")} />
             </div>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
 
         <div className="flex items-center gap-3 mt-6">
           {!isNew && (
-            <button onClick={handleDelete} className="p-2 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition">
+            <button onClick={handleDelete} className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg transition">
               <Trash2 className="w-4 h-4" />
             </button>
           )}
-          <button onClick={onClose} className="flex-1 py-2 border rounded-lg text-sm hover:bg-accent transition">Abbrechen</button>
-          <button onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90 transition disabled:opacity-50">
+          <button onClick={onClose} className="flex-1 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">Abbrechen</button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50"
+            style={{ backgroundColor: "#00ffff", color: "#000000" }}
+            onMouseEnter={(e) => !saving && ((e.currentTarget as HTMLElement).style.backgroundColor = "#00e5e5")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "#00ffff")}
+          >
             {saving ? "Speichern..." : "Speichern"}
           </button>
         </div>

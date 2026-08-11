@@ -44,19 +44,18 @@ export default function GlobalBoardHeader({ projects, activeProjectId, taskCount
   const activeLabel = priorities.find((p) => p.value === activePriority)?.label;
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-b bg-card shrink-0">
+    <div className="flex items-center justify-between px-6 py-4 border-b bg-white shrink-0">
       <div className="flex items-center gap-3">
-        <h1 className="text-lg font-bold">Aufgaben Board</h1>
+        <h1 className="text-lg font-bold text-slate-800">Aufgaben Board</h1>
 
         {/* Filter dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowFilter((v) => !v)}
-            className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm transition-colors ${
-              activePriority
-                ? "border-primary text-primary bg-primary/5"
-                : "text-muted-foreground hover:bg-accent"
-            }`}
+            className="flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm transition-colors"
+            style={activePriority
+              ? { borderColor: "#00ffff", color: "#007777", backgroundColor: "#00ffff10" }
+              : { color: "#64748b" }}
           >
             <Filter className="w-3.5 h-3.5" />
             {activeLabel ? `Priorität: ${activeLabel}` : `Filter`}
@@ -64,18 +63,18 @@ export default function GlobalBoardHeader({ projects, activeProjectId, taskCount
           </button>
 
           {showFilter && (
-            <div className="absolute top-full left-0 mt-1 w-44 bg-card border rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-              <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium">Priorität</div>
+            <div className="absolute top-full left-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+              <div className="px-3 py-1.5 text-xs text-slate-400 font-medium">Priorität</div>
               {priorities.map((p) => (
                 <button
                   key={p.value}
                   onClick={() => navigate(activePriority === p.value ? undefined : p.value)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent transition-colors ${
-                    activePriority === p.value ? "bg-accent" : ""
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 transition-colors ${
+                    activePriority === p.value ? "bg-slate-50" : ""
                   }`}
                 >
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.color}`}>{p.label}</span>
-                  {activePriority === p.value && <span className="ml-auto text-xs text-muted-foreground">✓</span>}
+                  {activePriority === p.value && <span className="ml-auto text-xs text-slate-400">✓</span>}
                 </button>
               ))}
               {activePriority && (
@@ -83,7 +82,7 @@ export default function GlobalBoardHeader({ projects, activeProjectId, taskCount
                   <div className="border-t my-1" />
                   <button
                     onClick={() => navigate(undefined)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent transition-colors text-muted-foreground"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 transition-colors text-slate-400"
                   >
                     <X className="w-3.5 h-3.5" />
                     Filter zurücksetzen
@@ -95,7 +94,7 @@ export default function GlobalBoardHeader({ projects, activeProjectId, taskCount
         </div>
 
         {activePriority && (
-          <span className="text-xs text-muted-foreground">{taskCount} Aufgabe{taskCount !== 1 ? "n" : ""}</span>
+          <span className="text-xs text-slate-400">{taskCount} Aufgabe{taskCount !== 1 ? "n" : ""}</span>
         )}
       </div>
 
@@ -109,7 +108,9 @@ export default function GlobalBoardHeader({ projects, activeProjectId, taskCount
             if (activePriority) params.set("priority", activePriority);
             router.push(`/board?${params.toString()}`);
           }}
-          className="appearance-none pl-3 pr-8 py-1.5 border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+          className="appearance-none pl-3 pr-8 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none cursor-pointer text-slate-700"
+          onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px #00ffff30")}
+          onBlur={(e) => (e.target.style.boxShadow = "")}
         >
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
@@ -117,7 +118,7 @@ export default function GlobalBoardHeader({ projects, activeProjectId, taskCount
             </option>
           ))}
         </select>
-        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
+        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-slate-400" />
       </div>
     </div>
   );

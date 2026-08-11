@@ -38,7 +38,7 @@ export default function KanbanCard({ task, onClick, isDragging }: Props) {
       {...listeners}
       onClick={onClick}
       className={cn(
-        "bg-card border rounded-lg p-3 cursor-pointer hover:shadow-md transition-shadow select-none",
+        "bg-white border border-slate-200 rounded-lg p-3 cursor-pointer hover:shadow-md transition-shadow select-none",
         isDragging && "shadow-xl rotate-2 scale-105"
       )}
     >
@@ -56,7 +56,11 @@ export default function KanbanCard({ task, onClick, isDragging }: Props) {
             </span>
           )}
           {task.profiles && (
-            <div className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-semibold" title={task.profiles.full_name}>
+            <div
+              className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold"
+              style={{ backgroundColor: "#00ffff20", color: "#007777" }}
+              title={task.profiles.full_name}
+            >
               {task.profiles.full_name?.[0]?.toUpperCase() ?? "?"}
             </div>
           )}

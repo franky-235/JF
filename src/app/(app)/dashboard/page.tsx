@@ -81,7 +81,7 @@ export default async function DashboardPage() {
   const myTasks = myTasksRaw ?? [];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto p-6">
       {/* Hero Banner */}
       <div
         className="relative rounded-2xl overflow-hidden p-8 shadow-xl"

@@ -22,9 +22,12 @@ export default function KanbanColumn({ column, onAddTask, onCardClick }: Props) 
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: column.color }} />
           <span className="font-medium text-sm">{column.title}</span>
-          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{column.tasks.length}</span>
+          <span className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">{column.tasks.length}</span>
         </div>
-        <button onClick={onAddTask} className="p-1 hover:bg-accent rounded-md text-muted-foreground hover:text-foreground transition">
+        <button
+          onClick={onAddTask}
+          className="p-1 rounded-md text-slate-400 hover:text-slate-600 transition-colors hover:bg-slate-100"
+        >
           <Plus className="w-4 h-4" />
         </button>
       </div>
@@ -32,7 +35,8 @@ export default function KanbanColumn({ column, onAddTask, onCardClick }: Props) 
       {/* Cards */}
       <div
         ref={setNodeRef}
-        className={`flex-1 overflow-y-auto rounded-xl transition-colors p-2 space-y-2 min-h-[100px] ${isOver ? "bg-primary/5 border-2 border-primary/30 border-dashed" : "bg-muted/30"}`}
+        className={`flex-1 overflow-y-auto rounded-xl transition-colors p-2 space-y-2 min-h-[100px] ${isOver ? "border-2 border-dashed" : ""}`}
+        style={isOver ? { backgroundColor: "#00ffff10", borderColor: "#00ffff50" } : { backgroundColor: "#f8fafc" }}
       >
         <SortableContext items={column.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {column.tasks.map((task) => (

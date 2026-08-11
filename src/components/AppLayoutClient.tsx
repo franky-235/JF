@@ -32,7 +32,7 @@ export default function AppLayoutClient({
           sidebarOpen={sidebarOpen}
           onSidebarToggle={() => setSidebarOpen((v) => !v)}
         />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>
   );

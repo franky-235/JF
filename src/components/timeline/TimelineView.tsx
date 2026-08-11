@@ -144,8 +144,8 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-xl font-bold">Timeline</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl font-bold text-slate-800">Timeline</h2>
+          <p className="text-sm text-slate-500">
             {tasksWithDates.length} von {allTasks.length} Aufgaben mit Zeitraum
           </p>
         </div>
@@ -155,7 +155,9 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
           <select
             value={groupBy}
             onChange={(e) => setGroupBy(e.target.value as any)}
-            className="text-sm border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none text-slate-700"
+            onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px #00ffff30")}
+            onBlur={(e) => (e.target.style.boxShadow = "")}
           >
             <option value="assignee">Gruppiert nach Zuständigem</option>
             <option value="priority">Gruppiert nach Priorität</option>
@@ -163,12 +165,17 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
           </select>
 
           {/* View toggle */}
-          <div className="flex border rounded-lg overflow-hidden">
+          <div className="flex border border-slate-200 rounded-lg overflow-hidden">
             {VIEW_OPTIONS.map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => { setView(key); setOffset(0); }}
-                className={cn("px-3 py-1.5 text-sm transition", view === key ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
+                className="px-3 py-1.5 text-sm transition"
+                style={view === key
+                  ? { backgroundColor: "#00ffff", color: "#000000" }
+                  : { color: "#64748b" }}
+                onMouseEnter={(e) => view !== key && ((e.currentTarget as HTMLElement).style.backgroundColor = "#f8fafc")}
+                onMouseLeave={(e) => view !== key && ((e.currentTarget as HTMLElement).style.backgroundColor = "")}
               >
                 {label}
               </button>
@@ -177,36 +184,36 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
 
           {/* Navigation */}
           <div className="flex items-center gap-1">
-            <button onClick={() => setOffset(0)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-accent transition">Heute</button>
-            <button onClick={() => setOffset((o) => o - 1)} className="p-1.5 border rounded-lg hover:bg-accent transition"><ChevronLeft className="w-4 h-4" /></button>
-            <span className="text-sm font-medium min-w-36 text-center">{periodLabel}</span>
-            <button onClick={() => setOffset((o) => o + 1)} className="p-1.5 border rounded-lg hover:bg-accent transition"><ChevronRight className="w-4 h-4" /></button>
+            <button onClick={() => setOffset(0)} className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition">Heute</button>
+            <button onClick={() => setOffset((o) => o - 1)} className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition text-slate-600"><ChevronLeft className="w-4 h-4" /></button>
+            <span className="text-sm font-medium min-w-36 text-center text-slate-700">{periodLabel}</span>
+            <button onClick={() => setOffset((o) => o + 1)} className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition text-slate-600"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
       </div>
 
       {allTasks.length === 0 && (
-        <div className="text-center py-20 text-muted-foreground border rounded-xl bg-card">
+        <div className="text-center py-20 text-slate-400 border border-slate-200 rounded-xl bg-white">
           <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="font-medium mb-1">Noch keine Aufgaben in diesem Projekt.</p>
+          <p className="font-medium mb-1 text-slate-600">Noch keine Aufgaben in diesem Projekt.</p>
           <p className="text-sm">Erstelle Aufgaben im Board und vergib Start- & Fälligkeitsdaten.</p>
         </div>
       )}
 
       {allTasks.length > 0 && (
-        <div className="bg-card border rounded-xl overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <div style={{ minWidth: `${240 + days.length * DAY_WIDTH}px` }}>
 
               {/* Month header (only if multiple months visible) */}
               {monthGroups.length > 1 && (
-                <div className="flex border-b bg-muted/30">
+                <div className="flex border-b bg-slate-50">
                   <div className="w-60 shrink-0 border-r" />
                   {monthGroups.map(({ label, count }) => (
                     <div
                       key={label}
                       style={{ width: count * DAY_WIDTH }}
-                      className="text-xs font-semibold text-center py-1.5 border-r text-muted-foreground uppercase tracking-wide shrink-0"
+                      className="text-xs font-semibold text-center py-1.5 border-r text-slate-500 uppercase tracking-wide shrink-0"
                     >
                       {label}
                     </div>
@@ -215,8 +222,8 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
               )}
 
               {/* Day header */}
-              <div className="flex border-b sticky top-0 bg-card z-10 shadow-sm">
-                <div className="w-60 shrink-0 px-4 py-2.5 text-xs font-semibold text-muted-foreground border-r uppercase tracking-wide">
+              <div className="flex border-b sticky top-0 bg-white z-10 shadow-sm">
+                <div className="w-60 shrink-0 px-4 py-2.5 text-xs font-semibold text-slate-500 border-r uppercase tracking-wide">
                   Aufgabe
                 </div>
                 {days.map((day) => {
@@ -225,17 +232,16 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
                   return (
                     <div
                       key={day.toISOString()}
-                      style={{ width: DAY_WIDTH }}
-                      className={cn(
-                        "text-center py-2 border-r shrink-0",
-                        isToday    ? "bg-primary/10" : "",
-                        isWeekend_ ? "bg-muted/40"   : "",
-                      )}
+                      style={{
+                        width: DAY_WIDTH,
+                        backgroundColor: isToday ? "#00ffff15" : isWeekend_ ? "#f8fafc" : undefined,
+                      }}
+                      className="text-center py-2 border-r shrink-0"
                     >
-                      <div className="text-[10px] text-muted-foreground font-medium">
+                      <div className="text-[10px] text-slate-400 font-medium">
                         {format(day, "EEE", { locale: de })}
                       </div>
-                      <div className={cn("text-xs font-bold", isToday ? "text-primary" : "text-foreground")}>
+                      <div className="text-xs font-bold" style={{ color: isToday ? "#00aaaa" : "#334155" }}>
                         {format(day, "d")}
                       </div>
                     </div>
@@ -248,13 +254,13 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
                 <div key={label ?? "all"}>
                   {/* Group header */}
                   {label !== null && (
-                    <div className="flex items-center border-b bg-muted/20">
+                    <div className="flex items-center border-b bg-slate-50">
                       <div className="w-60 shrink-0 px-4 py-2 border-r flex items-center gap-2">
-                        <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">
+                        <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide truncate">
                           {label}
                         </span>
-                        <span className="ml-auto text-xs text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 shrink-0">
+                        <span className="ml-auto text-xs text-slate-400 bg-slate-100 rounded-full px-1.5 py-0.5 shrink-0">
                           {tasks.length}
                         </span>
                       </div>
@@ -265,7 +271,7 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
                             style={{ width: DAY_WIDTH, display: "inline-block" }}
                             className={cn(
                               "h-full border-r",
-                              isSameDay(day, today) ? "bg-primary/5" : "",
+                              isSameDay(day, today) ? "bg-cyan-50/50" : "",
                               isWeekend(day) ? "bg-muted/30" : "",
                             )}
                           />
@@ -279,14 +285,14 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
                     const bar    = barMetrics(task);
                     const colors = PRIORITY_COLORS[task.priority];
                     return (
-                      <div key={task.id} className="flex border-b hover:bg-accent/20 transition-colors group" style={{ height: ROW_HEIGHT }}>
+                      <div key={task.id} className="flex border-b hover:bg-slate-50 transition-colors group" style={{ height: ROW_HEIGHT }}>
                         {/* Label cell */}
                         <div className="w-60 shrink-0 px-4 flex items-center gap-2 border-r">
                           <span className={cn("w-2 h-2 rounded-full shrink-0", colors.dot)} />
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate leading-tight">{task.title}</p>
                             {task.start_date && task.due_date && (
-                              <p className="text-[11px] text-muted-foreground">
+                              <p className="text-[11px] text-slate-400">
                                 {format(new Date(task.start_date), "dd.MM")} – {format(new Date(task.due_date), "dd.MM.yy")}
                               </p>
                             )}
@@ -302,7 +308,7 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
                               style={{ width: DAY_WIDTH }}
                               className={cn(
                                 "h-full border-r shrink-0",
-                                isSameDay(day, today) ? "bg-primary/5" : "",
+                                isSameDay(day, today) ? "bg-cyan-50/50" : "",
                                 isWeekend(day) ? "bg-muted/20" : "",
                               )}
                             />
@@ -343,21 +349,21 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
               {/* Tasks without dates (if any) */}
               {tasksWithoutDates.length > 0 && (
                 <div>
-                  <div className="flex items-center border-b bg-muted/20">
+                  <div className="flex items-center border-b bg-slate-50">
                     <div className="w-60 shrink-0 px-4 py-2 border-r">
-                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                         Ohne Datum ({tasksWithoutDates.length})
                       </span>
                     </div>
                     <div style={{ width: days.length * DAY_WIDTH }} />
                   </div>
                   {tasksWithoutDates.map((task) => (
-                    <div key={task.id} className="flex border-b hover:bg-accent/20 transition-colors" style={{ height: ROW_HEIGHT }}>
+                    <div key={task.id} className="flex border-b hover:bg-slate-50 transition-colors" style={{ height: ROW_HEIGHT }}>
                       <div className="w-60 shrink-0 px-4 flex items-center gap-2 border-r opacity-50">
                         <span className={cn("w-2 h-2 rounded-full shrink-0", PRIORITY_COLORS[task.priority].dot)} />
                         <p className="text-sm truncate">{task.title}</p>
                       </div>
-                      <div className="flex items-center px-4 text-xs text-muted-foreground italic" style={{ width: days.length * DAY_WIDTH }}>
+                      <div className="flex items-center px-4 text-xs text-slate-400 italic" style={{ width: days.length * DAY_WIDTH }}>
                         Kein Start- oder Fälligkeitsdatum
                       </div>
                     </div>
@@ -368,7 +374,7 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
           </div>
 
           {/* Footer: Legend */}
-          <div className="flex items-center gap-5 px-4 py-3 border-t bg-muted/20 text-xs text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-5 px-4 py-3 border-t bg-slate-50 text-xs text-slate-500 flex-wrap">
             <span className="font-semibold">Priorität:</span>
             {Object.entries(PRIORITY_LABELS).map(([key, label]) => (
               <span key={key} className="flex items-center gap-1.5">
@@ -377,7 +383,7 @@ export default function TimelineView({ tasks: allTasks, profiles }: Props) {
               </span>
             ))}
             <span className="ml-auto flex items-center gap-1.5">
-              <span className="w-5 h-3 bg-muted-foreground/20 rounded-sm" /> Wochenende
+              <span className="w-5 h-3 bg-slate-200 rounded-sm" /> Wochenende
             </span>
           </div>
         </div>

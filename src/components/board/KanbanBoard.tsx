@@ -175,24 +175,28 @@ export default function KanbanBoard({ columns: initialColumns, projectId, profil
       {/* Add Column */}
       <div className="shrink-0 w-72">
         {showAddColumn ? (
-          <div className="bg-card border rounded-xl p-3">
+          <div className="bg-white border border-slate-200 rounded-xl p-3">
             <input
               autoFocus
               value={newColumnTitle}
               onChange={(e) => setNewColumnTitle(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleAddColumn(); if (e.key === "Escape") setShowAddColumn(false); }}
               placeholder="Spaltenname..."
-              className="w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring mb-2"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none mb-2"
+              onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px #00ffff30")}
+              onBlur={(e) => (e.target.style.boxShadow = "")}
             />
             <div className="flex gap-2">
-              <button onClick={handleAddColumn} className="flex-1 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90">Hinzufügen</button>
-              <button onClick={() => setShowAddColumn(false)} className="flex-1 py-1.5 border rounded-lg text-sm hover:bg-accent">Abbrechen</button>
+              <button onClick={handleAddColumn} className="flex-1 py-1.5 rounded-lg text-sm font-semibold" style={{ backgroundColor: "#00ffff", color: "#000000" }}>Hinzufügen</button>
+              <button onClick={() => setShowAddColumn(false)} className="flex-1 py-1.5 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 text-slate-600">Abbrechen</button>
             </div>
           </div>
         ) : (
           <button
             onClick={() => setShowAddColumn(true)}
-            className="w-full flex items-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl text-muted-foreground hover:border-primary hover:text-primary transition text-sm"
+            className="w-full flex items-center gap-2 px-4 py-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 transition text-sm hover:text-slate-600"
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.borderColor = "#00ffff")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.borderColor = "")}
           >
             <Plus className="w-4 h-4" /> Spalte hinzufügen
           </button>

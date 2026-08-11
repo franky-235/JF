@@ -37,12 +37,12 @@ export default function GlobalChatClient({
   const activeProject = projects.find((p) => p.id === activeProjectId);
 
   return (
-    <div className="flex h-full bg-white rounded-xl border border-slate-200 overflow-hidden" style={{ height: "calc(100vh - 128px)" }}>
+    <div className="flex bg-white rounded-xl border border-slate-200 overflow-hidden" style={{ height: "calc(100vh - 56px)" }}>
       {/* Left: project list */}
       <div className="w-64 flex-shrink-0 bg-slate-50 border-r border-slate-200 flex flex-col">
         <div className="px-4 py-4 border-b border-slate-200">
           <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" style={{ color: "#22d3ee" }} />
+            <MessageSquare className="w-4 h-4" style={{ color: "#00aaaa" }} />
             Projekt Chats
           </h2>
         </div>
@@ -56,13 +56,13 @@ export default function GlobalChatClient({
                 key={project.id}
                 onClick={() => router.push(`/chat?project=${project.id}`)}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isActive ? "border-r-2" : "hover:bg-slate-100"}`}
-                style={isActive ? { backgroundColor: "#22d3ee18", borderRightColor: "#22d3ee" } : {}}
+                style={isActive ? { backgroundColor: "#00ffff15", borderRightColor: "#00ffff" } : {}}
               >
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
                 <div className="flex-1 min-w-0">
                   <p
                     className="text-sm font-medium truncate"
-                    style={isActive ? { color: "#0e7490" } : { color: "#334155" }}
+                    style={isActive ? { color: "#007777" } : { color: "#334155" }}
                   >
                     {project.name}
                   </p>
