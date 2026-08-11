@@ -103,12 +103,20 @@ export default function ChatWindow({ projectId, initialMessages, currentUserId, 
                     <div key={msg.id} className={`flex items-end gap-3 ${isOwn ? "flex-row-reverse" : ""}`}>
                       {/* Avatar */}
                       {!sameUser ? (
-                        <div
-                          className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-semibold mb-0.5"
-                          style={{ background: isOwn ? "#00ffff" : "#94a3b8" }}
-                        >
-                          {msg.profile?.full_name?.[0]?.toUpperCase() ?? "?"}
-                        </div>
+                        msg.profile?.avatar_url ? (
+                          <img
+                            src={msg.profile.avatar_url}
+                            alt={msg.profile.full_name}
+                            className="w-8 h-8 rounded-full shrink-0 object-cover mb-0.5"
+                          />
+                        ) : (
+                          <div
+                            className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-semibold mb-0.5"
+                            style={{ background: isOwn ? "#00ffff" : "#94a3b8" }}
+                          >
+                            {msg.profile?.full_name?.[0]?.toUpperCase() ?? "?"}
+                          </div>
+                        )
                       ) : (
                         <div className="w-8 shrink-0" />
                       )}

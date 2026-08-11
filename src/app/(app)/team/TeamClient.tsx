@@ -3,17 +3,8 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
-import { UserPlus, Crown, User, Mail, Building, X, Check, Pencil, Loader2 } from "lucide-react";
-
-const avatarColors = [
-  "#6366f1", "#0EA5E9", "#10b981", "#f59e0b",
-  "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6",
-  "#f97316", "#84cc16",
-];
-
-function getInitials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-}
+import { UserPlus, Crown, User, Mail, Building, X, Check, Pencil, Loader2, Trash2 } from "lucide-react";
+import Avatar from "@/components/Avatar";
 
 interface Props {
   profiles: Profile[];
@@ -32,6 +23,7 @@ export default function TeamClient({ profiles: initial, currentProfile, currentE
   const [lastName, setLastName] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const isAdmin = currentProfile?.role === "admin";
   const maxSeats = 10;
@@ -76,6 +68,21 @@ export default function TeamClient({ profiles: initial, currentProfile, currentE
     const supabase = createClient();
     await supabase.from("profiles").update({ role: newRole }).eq("id", profile.id);
     setProfiles((prev) => prev.map((p) => p.id === profile.id ? { ...p, role: newRole } : p));
+  }
+
+  async function handleRemove(profile: Profile) {
+    if (!confirm(`${profile.full_name || "Dieses Mitglied"} wirklich aus dem Team entfernen?`)) return;
+    setRemovingId(profile.id);
+    try {
+      const res = await fetch(`/api/team/${profile.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Fehler beim Entfernen");
+      setProfiles((prev) => prev.filter((p) => p.id !== profile.id));
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setRemovingId(null);
+    }
   }
 
   return (
@@ -127,8 +134,7 @@ export default function TeamClient({ profiles: initial, currentProfile, currentE
 
       {/* Grid of member cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {profiles.map((p, i) => {
-          const color = avatarColors[i % avatarColors.length];
+        {profiles.map((p) => {
           const isMe = p.id === currentProfile?.id;
           const isEditing = editingId === p.id;
 
@@ -140,11 +146,8 @@ export default function TeamClient({ profiles: initial, currentProfile, currentE
               }`}
             >
               <div className="flex items-start gap-4 mb-4">
-                <div
-                  className="w-14 h-14 rounded-xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0 shadow-sm"
-                  style={{ backgroundColor: color }}
-                >
-                  {getInitials(p.full_name || "?")}
+                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-sm">
+                  <Avatar name={p.full_name || "?"} avatarUrl={p.avatar_url} size={56} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -219,12 +222,22 @@ export default function TeamClient({ profiles: initial, currentProfile, currentE
                     </button>
                   )}
                   {!isMe && (
-                    <button
-                      onClick={() => handleRoleToggle(p)}
-                      className="flex-1 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                    >
-                      {p.role === "admin" ? "Zu Member" : "Zu Admin"}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleRoleToggle(p)}
+                        className="flex-1 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        {p.role === "admin" ? "Zu Member" : "Zu Admin"}
+                      </button>
+                      <button
+                        onClick={() => handleRemove(p)}
+                        disabled={removingId === p.id}
+                        title="Aus dem Team entfernen"
+                        className="flex items-center justify-center px-3 py-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40"
+                      >
+                        {removingId === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                      </button>
+                    </>
                   )}
                 </div>
               )}

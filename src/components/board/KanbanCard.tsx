@@ -56,13 +56,22 @@ export default function KanbanCard({ task, onClick, isDragging }: Props) {
             </span>
           )}
           {task.profiles && (
-            <div
-              className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold"
-              style={{ backgroundColor: "#00ffff20", color: "#007777" }}
-              title={task.profiles.full_name}
-            >
-              {task.profiles.full_name?.[0]?.toUpperCase() ?? "?"}
-            </div>
+            task.profiles.avatar_url ? (
+              <img
+                src={task.profiles.avatar_url}
+                alt={task.profiles.full_name}
+                title={task.profiles.full_name}
+                className="w-5 h-5 rounded-full object-cover"
+              />
+            ) : (
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold"
+                style={{ backgroundColor: "#00ffff20", color: "#007777" }}
+                title={task.profiles.full_name}
+              >
+                {task.profiles.full_name?.[0]?.toUpperCase() ?? "?"}
+              </div>
+            )
           )}
         </div>
       </div>

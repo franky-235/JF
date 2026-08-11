@@ -1,15 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import { User2, Mail, Lock, Save, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { User2, Mail, Lock, Save, X, Camera, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
+import Avatar from "@/components/Avatar";
 
-function getInitials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+function resizeImage(file: File, maxPx = 256): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas nicht verfügbar"));
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Konvertierung fehlgeschlagen"))), "image/jpeg", 0.9);
+      };
+      img.onerror = () => reject(new Error("Bild konnte nicht geladen werden"));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error("Datei konnte nicht gelesen werden"));
+    reader.readAsDataURL(file);
+  });
 }
-
-const avatarColors = ["#6366f1", "#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
 export default function ProfileClient({
   profile: initialProfile,
@@ -30,9 +50,49 @@ export default function ProfileClient({
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const colorIndex = profile?.full_name ? profile.full_name.charCodeAt(0) % avatarColors.length : 0;
-  const avatarColor = avatarColors[colorIndex];
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+    if (!file.type.startsWith("image/")) {
+      setMessage({ type: "error", text: "Bitte eine Bilddatei auswählen" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Datei darf maximal 10 MB groß sein" });
+      return;
+    }
+    setUploading(true);
+    setMessage(null);
+    try {
+      const blob = await resizeImage(file);
+      const supabase = createClient();
+      const path = `${profile.id}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, blob, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+      const bustedUrl = `${publicUrl}?t=${Date.now()}`;
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ avatar_url: bustedUrl })
+        .eq("id", profile.id)
+        .select()
+        .single();
+      if (error) throw error;
+      setProfile(data);
+      setMessage({ type: "success", text: "Profilfoto aktualisiert" });
+    } catch (err: any) {
+      setMessage({ type: "error", text: err.message || "Upload fehlgeschlagen" });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!profile) return;
@@ -105,11 +165,26 @@ export default function ProfileClient({
           style={{ background: "linear-gradient(135deg, #283737 0%, #565656 100%)" }}
         >
           <div className="absolute -bottom-12 left-6">
-            <div
-              className="w-24 h-24 rounded-full border-4 border-white flex items-center justify-center text-white text-2xl font-bold shadow-lg"
-              style={{ backgroundColor: avatarColor }}
-            >
-              {getInitials(profile.full_name || "?")}
+            <div className="relative w-24 h-24">
+              <div className="w-24 h-24 rounded-full border-4 border-white shadow-lg overflow-hidden">
+                <Avatar name={profile.full_name || "?"} avatarUrl={profile.avatar_url} size={96} />
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                title="Profilfoto ändern"
+                className="absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center text-black shadow-md disabled:opacity-50"
+                style={{ backgroundColor: "#00ffff" }}
+              >
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
             </div>
           </div>
         </div>

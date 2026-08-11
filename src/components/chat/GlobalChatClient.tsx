@@ -83,12 +83,16 @@ export default function GlobalChatClient({
               return (
                 <div key={profile.id} className="flex items-center gap-2">
                   <div className="relative">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-semibold"
-                      style={{ background: color }}
-                    >
-                      {profile.full_name?.[0]?.toUpperCase() ?? "?"}
-                    </div>
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} alt={profile.full_name} className="w-6 h-6 rounded-full object-cover" />
+                    ) : (
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+                        style={{ background: color }}
+                      >
+                        {profile.full_name?.[0]?.toUpperCase() ?? "?"}
+                      </div>
+                    )}
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-50 ${isMe ? "bg-emerald-400" : "bg-slate-300"}`}
                     />

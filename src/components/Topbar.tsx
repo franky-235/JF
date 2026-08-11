@@ -4,12 +4,7 @@ import { Bell, Search, Menu, X, CheckCircle2, Clock, AlertCircle, Trash2 } from 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Profile } from "@/types";
-
-function getInitials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-}
-
-const avatarColors = ["#6366f1", "#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+import Avatar from "@/components/Avatar";
 
 const notifications = [
   {
@@ -57,9 +52,6 @@ export default function Topbar({
   const [searchValue, setSearchValue] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
-
-  const colorIndex = profile?.full_name ? profile.full_name.charCodeAt(0) % avatarColors.length : 0;
-  const avatarColor = avatarColors[colorIndex];
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -177,12 +169,7 @@ export default function Topbar({
           onClick={() => router.push("/profile")}
           className="flex items-center gap-2 cursor-pointer group"
         >
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold"
-            style={{ backgroundColor: avatarColor }}
-          >
-            {getInitials(profile.full_name || "?")}
-          </div>
+          <Avatar name={profile.full_name || "?"} avatarUrl={profile.avatar_url} size={32} />
           <div className="hidden md:block text-left">
             <div className="text-sm font-medium text-slate-700 group-hover:text-[#009999] transition-colors">
               {profile.full_name?.split(" ")[0] || "Benutzer"}

@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import Avatar from "@/components/Avatar";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -32,15 +33,6 @@ const navItems = [
 ];
 
 type Project = { id: string; name: string; color?: string };
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
 
 export default function Sidebar({
   profile,
@@ -62,10 +54,6 @@ export default function Sidebar({
     await supabase.auth.signOut();
     router.push("/login");
   }
-
-  const avatarColors = ["#6366f1", "#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
-  const colorIndex = profile?.full_name ? profile.full_name.charCodeAt(0) % avatarColors.length : 0;
-  const avatarColor = avatarColors[colorIndex];
 
   return (
     <aside
@@ -160,12 +148,8 @@ export default function Sidebar({
       <div className="border-t border-white/10 p-3">
         {profile && (
           <div className={cn("flex items-center gap-3", !open && "justify-center")}>
-            <Link
-              href="/profile"
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 hover:opacity-80 transition-opacity"
-              style={{ backgroundColor: avatarColor }}
-            >
-              {getInitials(profile.full_name || "?")}
+            <Link href="/profile" className="hover:opacity-80 transition-opacity">
+              <Avatar name={profile.full_name || "?"} avatarUrl={profile.avatar_url} size={32} />
             </Link>
             {open && (
               <>
