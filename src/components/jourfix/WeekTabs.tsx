@@ -2,7 +2,7 @@
 
 import { format, getISOWeek, addDays } from "date-fns";
 import { de } from "date-fns/locale";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { JourfixWeek } from "@/types";
 
@@ -12,7 +12,7 @@ interface Props {
   selectedWeekStart: string;
   isAdmin: boolean;
   onSelect: (weekStart: string) => void;
-  onEnsureNextWeek: () => void;
+  onOpenNewWeek: () => void;
   onDeleteWeek: (weekId: string) => void;
   creatingWeek: boolean;
 }
@@ -23,8 +23,8 @@ function weekLabel(weekStart: string) {
   return `KW ${getISOWeek(start)} · ${format(start, "dd.MM.", { locale: de })}–${format(end, "dd.MM.yyyy", { locale: de })}`;
 }
 
-export default function WeekTabs({ weeks, currentWeekStart, selectedWeekStart, isAdmin, onSelect, onEnsureNextWeek, onDeleteWeek, creatingWeek }: Props) {
-  const sorted = [...weeks].sort((a, b) => a.week_start.localeCompare(b.week_start));
+export default function WeekTabs({ weeks, currentWeekStart, selectedWeekStart, isAdmin, onSelect, onOpenNewWeek, onDeleteWeek, creatingWeek }: Props) {
+  const sorted = [...weeks].sort((a, b) => b.week_start.localeCompare(a.week_start));
   const hasSelected = sorted.some((w) => w.week_start === selectedWeekStart);
 
   return (
@@ -70,12 +70,12 @@ export default function WeekTabs({ weeks, currentWeekStart, selectedWeekStart, i
         </button>
       )}
       <button
-        onClick={onEnsureNextWeek}
+        onClick={onOpenNewWeek}
         disabled={creatingWeek}
         title="Nächste Woche anlegen"
         className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50"
       >
-        <Plus className="w-4 h-4" />
+        {creatingWeek ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
       </button>
     </div>
   );

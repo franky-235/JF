@@ -2,11 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { addDays, format } from "date-fns";
+import { addDays, format, getISOWeek } from "date-fns";
+import { de } from "date-fns/locale";
+import { Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { JourfixArea, JourfixTask, JourfixWeek, Profile } from "@/types";
 import WeekTabs from "./WeekTabs";
 import AreaCard from "./AreaCard";
+import ParticipantsModal from "./ParticipantsModal";
+import Avatar from "@/components/Avatar";
+
+function weekLabel(weekStart: string) {
+  const start = new Date(`${weekStart}T00:00:00`);
+  const end = addDays(start, 4);
+  return `KW ${getISOWeek(start)} · ${format(start, "dd.MM.", { locale: de })}–${format(end, "dd.MM.yyyy", { locale: de })}`;
+}
 
 export type ProjectOption = {
   id: string;
@@ -43,6 +53,8 @@ export default function JourfixClient({
   const [areas, setAreas] = useState(initialAreas);
   const [tasks, setTasks] = useState(initialTasks);
   const [creatingWeek, setCreatingWeek] = useState(false);
+  const [newWeekStart, setNewWeekStart] = useState<string | null>(null);
+  const [editingParticipants, setEditingParticipants] = useState(false);
   const localChangeRef = useRef(false);
 
   useEffect(() => {
@@ -168,16 +180,48 @@ export default function JourfixClient({
     }
   }
 
-  async function handleEnsureNextWeek() {
-    setCreatingWeek(true);
-    const latest = weeks[0]?.week_start ?? currentWeekStart;
-    const nextWeekStart = format(addDays(new Date(`${latest}T00:00:00`), 7), "yyyy-MM-dd");
+  function openNewWeekModal(explicitWeekStart?: string) {
+    let target = explicitWeekStart;
+    if (!target) {
+      const latest = weeks[0]?.week_start ?? currentWeekStart;
+      target = format(addDays(new Date(`${latest}T00:00:00`), 7), "yyyy-MM-dd");
+    }
+    setNewWeekStart(target);
+  }
+
+  async function setWeekParticipants(weekId: string, participantIds: string[]) {
     const supabase = createClient();
-    const { error } = await supabase.rpc("jourfix_ensure_week", { p_week_start: nextWeekStart });
+    const { error: delError } = await supabase.from("jourfix_week_participants").delete().eq("week_id", weekId);
+    if (delError) { alert(`Teilnehmer konnten nicht gespeichert werden: ${delError.message}`); return false; }
+    if (participantIds.length > 0) {
+      const { error } = await supabase
+        .from("jourfix_week_participants")
+        .insert(participantIds.map((user_id) => ({ week_id: weekId, user_id })));
+      if (error) { alert(`Teilnehmer konnten nicht gespeichert werden: ${error.message}`); return false; }
+    }
+    return true;
+  }
+
+  async function handleCreateWeek(participantIds: string[]) {
+    if (!newWeekStart) return;
+    setCreatingWeek(true);
+    const supabase = createClient();
+    const { data: weekId, error } = await supabase.rpc("jourfix_ensure_week", { p_week_start: newWeekStart });
     if (error) { alert(`Woche konnte nicht angelegt werden: ${error.message}`); setCreatingWeek(false); return; }
-    router.push(`/jourfix?week=${nextWeekStart}`);
+    await setWeekParticipants(weekId as string, participantIds);
+    const target = newWeekStart;
+    setNewWeekStart(null);
+    router.push(`/jourfix?week=${target}`);
     router.refresh();
     setCreatingWeek(false);
+  }
+
+  async function handleUpdateParticipants(participantIds: string[]) {
+    if (!selectedWeek) return;
+    markLocalChange();
+    const ok = await setWeekParticipants(selectedWeek.id, participantIds);
+    setEditingParticipants(false);
+    if (ok) router.refresh();
   }
 
   async function handleDeleteWeek(weekId: string) {
@@ -211,17 +255,44 @@ export default function JourfixClient({
         selectedWeekStart={selectedWeekStart}
         isAdmin={isAdmin}
         onSelect={(weekStart) => router.push(`/jourfix?week=${weekStart}`)}
-        onEnsureNextWeek={handleEnsureNextWeek}
+        onOpenNewWeek={() => openNewWeekModal()}
         onDeleteWeek={handleDeleteWeek}
         creatingWeek={creatingWeek}
       />
+
+      {selectedWeek && (
+        <div className="flex items-center gap-2 px-6 py-1.5 border-b text-xs text-muted-foreground">
+          <span className="font-medium shrink-0">Teilnehmer:</span>
+          {(selectedWeek.participants ?? []).length === 0 ? (
+            <span>Keine ausgewählt</span>
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              {(selectedWeek.participants ?? []).map((p) => (
+                <span key={p.id} className="flex items-center gap-1 shrink-0">
+                  <Avatar name={p.full_name || "?"} avatarUrl={p.avatar_url} size={16} />
+                  {p.full_name || "(kein Name)"}
+                </span>
+              ))}
+            </div>
+          )}
+          {isAdmin && (
+            <button
+              onClick={() => setEditingParticipants(true)}
+              className="ml-auto shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              title="Teilnehmer bearbeiten"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-6">
         {!selectedWeek ? (
           <div className="flex flex-col items-center justify-center h-full text-center gap-3 text-muted-foreground">
             <p>Diese Woche wurde noch nicht angelegt.</p>
             <button
-              onClick={handleEnsureNextWeek}
+              onClick={() => openNewWeekModal(selectedWeekStart)}
               disabled={creatingWeek}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90 disabled:opacity-50"
             >
@@ -249,6 +320,28 @@ export default function JourfixClient({
 
         {isAdmin && selectedWeek && <AddAreaButton onAdd={handleAddArea} />}
       </div>
+
+      {newWeekStart && (
+        <ParticipantsModal
+          title="Neuer Jourfix-Zeitraum"
+          subtitle={`Teilnehmende Mitglieder für ${weekLabel(newWeekStart)} auswählen`}
+          profiles={profiles}
+          initialSelectedIds={[]}
+          onConfirm={handleCreateWeek}
+          onCancel={() => setNewWeekStart(null)}
+        />
+      )}
+
+      {editingParticipants && selectedWeek && (
+        <ParticipantsModal
+          title="Teilnehmer bearbeiten"
+          subtitle={weekLabel(selectedWeek.week_start)}
+          profiles={profiles}
+          initialSelectedIds={(selectedWeek.participants ?? []).map((p) => p.id)}
+          onConfirm={handleUpdateParticipants}
+          onCancel={() => setEditingParticipants(false)}
+        />
+      )}
     </div>
   );
 }

@@ -31,7 +31,7 @@ export default async function JourfixPage({
       user ? supabase.from("profiles").select("*").eq("id", user.id).single() : Promise.resolve({ data: null }),
       supabase
         .from("jourfix_weeks")
-        .select("*")
+        .select("*, jourfix_week_participants(profile:profiles(id, full_name, avatar_url, role, created_at))")
         .order("week_start", { ascending: false })
         .limit(12),
       supabase.from("jourfix_areas").select("*").order("position"),
@@ -42,7 +42,12 @@ export default async function JourfixPage({
         .order("name"),
     ]);
 
-  const selectedWeek = (weeks ?? []).find((w) => w.week_start === selectedWeekStart) ?? null;
+  const weeksWithParticipants = (weeks ?? []).map((w: any) => ({
+    ...w,
+    participants: (w.jourfix_week_participants ?? []).map((p: any) => p.profile).filter(Boolean),
+  }));
+
+  const selectedWeek = weeksWithParticipants.find((w) => w.week_start === selectedWeekStart) ?? null;
 
   const { data: tasks } = selectedWeek
     ? await supabase
@@ -58,7 +63,7 @@ export default async function JourfixPage({
       isAdmin={profile?.role === "admin"}
       currentUserId={user?.id ?? null}
       currentWeekStart={currentWeekStart}
-      weeks={(weeks ?? []) as JourfixWeek[]}
+      weeks={weeksWithParticipants as JourfixWeek[]}
       selectedWeekStart={selectedWeekStart}
       selectedWeek={selectedWeek as JourfixWeek | null}
       areas={(areas ?? []) as JourfixArea[]}

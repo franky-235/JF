@@ -82,6 +82,7 @@ export interface JourfixWeek {
   id: string;
   week_start: string;
   created_at: string;
+  participants?: Profile[];
 }
 
 export interface JourfixTask {
