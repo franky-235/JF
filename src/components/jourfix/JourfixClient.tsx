@@ -85,11 +85,12 @@ export default function JourfixClient({
   async function handleAddArea(name: string) {
     const supabase = createClient();
     markLocalChange();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("jourfix_areas")
       .insert({ name, position: areas.length, created_by: currentUserId })
       .select()
       .single();
+    if (error) { alert(`Bereich konnte nicht angelegt werden: ${error.message}`); return; }
     if (data) setAreas((prev) => [...prev, data]);
   }
 
@@ -97,21 +98,24 @@ export default function JourfixClient({
     const supabase = createClient();
     markLocalChange();
     setAreas((prev) => prev.map((a) => (a.id === areaId ? { ...a, name } : a)));
-    await supabase.from("jourfix_areas").update({ name }).eq("id", areaId);
+    const { error } = await supabase.from("jourfix_areas").update({ name }).eq("id", areaId);
+    if (error) alert(`Umbenennen fehlgeschlagen: ${error.message}`);
   }
 
   async function handleToggleDone(taskId: string, done: boolean) {
     const supabase = createClient();
     markLocalChange();
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, done } : t)));
-    await supabase.from("jourfix_tasks").update({ done }).eq("id", taskId);
+    const { error } = await supabase.from("jourfix_tasks").update({ done }).eq("id", taskId);
+    if (error) alert(`Aufgabe konnte nicht aktualisiert werden: ${error.message}`);
   }
 
   async function handleAssign(taskId: string, assigneeId: string | null) {
     const supabase = createClient();
     markLocalChange();
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, assignee_id: assigneeId, assignee: profiles.find((p) => p.id === assigneeId) ?? null } : t)));
-    await supabase.from("jourfix_tasks").update({ assignee_id: assigneeId }).eq("id", taskId);
+    const { error } = await supabase.from("jourfix_tasks").update({ assignee_id: assigneeId }).eq("id", taskId);
+    if (error) alert(`Zuweisung fehlgeschlagen: ${error.message}`);
   }
 
   async function handleAddTask(params: {
@@ -129,7 +133,7 @@ export default function JourfixClient({
     let linkedTask: { id: string; title: string; project_id: string } | null = null;
 
     if (params.linkToBoard && params.projectId && params.columnId) {
-      const { data: newTask } = await supabase
+      const { data: newTask, error: linkError } = await supabase
         .from("tasks")
         .insert({
           project_id: params.projectId,
@@ -141,10 +145,11 @@ export default function JourfixClient({
         })
         .select()
         .single();
+      if (linkError) { alert(`Board-Aufgabe konnte nicht angelegt werden: ${linkError.message}`); return; }
       if (newTask) linkedTask = { id: newTask.id, title: newTask.title, project_id: newTask.project_id };
     }
 
-    const { data: jourfixTask } = await supabase
+    const { data: jourfixTask, error } = await supabase
       .from("jourfix_tasks")
       .insert({
         week_id: selectedWeek.id,
@@ -157,6 +162,7 @@ export default function JourfixClient({
       .select()
       .single();
 
+    if (error) { alert(`Aufgabe konnte nicht angelegt werden: ${error.message}`); return; }
     if (jourfixTask) {
       setTasks((prev) => [...prev, enrichTask({ ...jourfixTask, linked_task: linkedTask })]);
     }
@@ -167,7 +173,8 @@ export default function JourfixClient({
     const latest = weeks[0]?.week_start ?? currentWeekStart;
     const nextWeekStart = format(addDays(new Date(`${latest}T00:00:00`), 7), "yyyy-MM-dd");
     const supabase = createClient();
-    await supabase.rpc("jourfix_ensure_week", { p_week_start: nextWeekStart });
+    const { error } = await supabase.rpc("jourfix_ensure_week", { p_week_start: nextWeekStart });
+    if (error) { alert(`Woche konnte nicht angelegt werden: ${error.message}`); setCreatingWeek(false); return; }
     router.push(`/jourfix?week=${nextWeekStart}`);
     router.refresh();
     setCreatingWeek(false);
