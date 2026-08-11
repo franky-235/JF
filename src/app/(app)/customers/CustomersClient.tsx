@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
-  Plus, Search, Mail, Phone, RefreshCw, Pencil, Trash2, X, Loader2,
-  CheckCircle2, ChevronDown, ChevronRight, FolderOpen
+  Plus, Search, Mail, Phone, Pencil, Trash2, X, Loader2,
+  ChevronDown, ChevronRight, FolderOpen
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Customer } from "@/types";
@@ -26,14 +25,12 @@ interface CustomerForm {
 const emptyForm: CustomerForm = { name: "", company: "", email: "", phone: "", notes: "" };
 
 export default function CustomersClient({ customers: initial }: Props) {
-  const router = useRouter();
   const [customers, setCustomers] = useState(initial);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState<CustomerForm>(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -90,20 +87,6 @@ export default function CustomersClient({ customers: initial }: Props) {
     setCustomers((prev) => prev.filter((c) => c.id !== id));
   }
 
-  async function handleHubSpotSync() {
-    setSyncing(true);
-    try {
-      const res = await fetch("/api/hubspot/sync", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Sync fehlgeschlagen");
-      router.refresh();
-    } catch (e: any) {
-      alert(e.message);
-    } finally {
-      setSyncing(false);
-    }
-  }
-
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -113,15 +96,6 @@ export default function CustomersClient({ customers: initial }: Props) {
           <p className="text-sm text-slate-500">{customers.length} Kunden verwaltet</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={handleHubSpotSync}
-            disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 border border-orange-300 text-orange-600 rounded-lg text-sm hover:bg-orange-50 transition-colors font-medium disabled:opacity-50"
-          >
-            <div className="w-4 h-4 bg-orange-500 rounded-sm flex items-center justify-center text-white text-xs font-bold">H</div>
-            {syncing ? "Syncing..." : "HubSpot"}
-            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-          </button>
           <button
             onClick={openCreate}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
@@ -155,7 +129,6 @@ export default function CustomersClient({ customers: initial }: Props) {
             <tr className="bg-slate-50 border-b border-slate-200">
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Kunde</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Kontakt</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">HubSpot</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Erstellt</th>
               <th className="px-4 py-3 w-24" />
             </tr>
@@ -211,15 +184,6 @@ export default function CustomersClient({ customers: initial }: Props) {
                       {!c.email && !c.phone && <span className="text-slate-400 text-xs">—</span>}
                     </div>
                   </td>
-                  <td className="px-4 py-3 hidden lg:table-cell">
-                    {c.hubspot_id ? (
-                      <span className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full w-fit">
-                        <CheckCircle2 className="w-3 h-3" /> Verknüpft
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-400">–</span>
-                    )}
-                  </td>
                   <td className="px-4 py-3 text-xs text-slate-400 hidden lg:table-cell">
                     {format(new Date(c.created_at), "d. MMM yyyy", { locale: de })}
                   </td>
@@ -244,7 +208,7 @@ export default function CustomersClient({ customers: initial }: Props) {
                 </tr>
                 {expandedId === c.id && (c.projectCount ?? 0) > 0 && (
                   <tr key={`${c.id}-expanded`}>
-                    <td colSpan={5} className="px-4 py-3 bg-slate-50/50">
+                    <td colSpan={4} className="px-4 py-3 bg-slate-50/50">
                       <div className="pl-10">
                         <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Verknüpfte Projekte</div>
                         <p className="text-xs text-slate-400">Projekte werden in der Projektübersicht angezeigt.</p>
@@ -256,7 +220,7 @@ export default function CustomersClient({ customers: initial }: Props) {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center py-12 text-slate-400 text-sm">
+                <td colSpan={4} className="text-center py-12 text-slate-400 text-sm">
                   Keine Kunden gefunden
                 </td>
               </tr>

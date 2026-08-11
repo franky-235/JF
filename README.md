@@ -10,7 +10,7 @@ Internes Projektmanagement-Tool für 4–10 Benutzer.
 - **Kanban-Board** – Drag & Drop mit Realtime-Updates
 - **Timeline** – Gantt-Ansicht der Aufgaben (Wochen-/Monatsansicht)
 - **Chat** – Pro-Projekt-Chat mit Supabase Realtime
-- **Kundenverwaltung** – CRUD + HubSpot-Sync (read-only)
+- **Kundenverwaltung** – CRUD
 - **Jourfix** – Aufgabenbereiche mit wöchentlich neuen Reitern; offene Aufgaben werden automatisch übernommen und je nach Anzahl der Wochen farblich markiert (grün/gelb/orange/rot)
 - **Settings** – Profilbearbeitung, Teamverwaltung, Benutzereinladung
 
@@ -40,7 +40,6 @@ Dann in `.env.local` ausfüllen:
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
-HUBSPOT_ACCESS_TOKEN=pat-na1-...   # Optional
 CRON_SECRET=...                    # Für /api/jourfix/rollover
 ```
 
@@ -70,13 +69,6 @@ npx vercel --prod
 ```
 
 Env-Variablen in Vercel-Projekteinstellungen hinzufügen (inkl. `CRON_SECRET`). Der wöchentliche Jourfix-Rollover läuft über den in `vercel.json` konfigurierten Cron-Job (montags 05:00 UTC) auf `/api/jourfix/rollover`.
-
-## HubSpot-Integration
-
-1. HubSpot → Settings → Integrations → Private Apps → App erstellen
-2. Scope: `crm.objects.contacts.read`
-3. Access Token in `.env.local` als `HUBSPOT_ACCESS_TOKEN` eintragen
-4. In der App: Kunden → "HubSpot Sync" Button klicken
 
 ## Tech Stack
 
