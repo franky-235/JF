@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import type { JourfixArea, JourfixTask, Profile } from "@/types";
 import type { ProjectOption } from "./JourfixClient";
 import TaskRow from "./TaskRow";
@@ -14,8 +14,11 @@ interface Props {
   projects: ProjectOption[];
   isAdmin: boolean;
   onRename: (name: string) => void;
+  onDeleteArea: () => void;
   onToggleDone: (taskId: string, done: boolean) => void;
   onAssign: (taskId: string, assigneeId: string | null) => void;
+  onUpdateTaskDetails: (taskId: string, details: string) => void;
+  onDeleteTask: (taskId: string) => void;
   onAddTask: (params: {
     title: string;
     assigneeId: string | null;
@@ -25,7 +28,7 @@ interface Props {
   }) => void;
 }
 
-export default function AreaCard({ area, tasks, profiles, projects, isAdmin, onRename, onToggleDone, onAssign, onAddTask }: Props) {
+export default function AreaCard({ area, tasks, profiles, projects, isAdmin, onRename, onDeleteArea, onToggleDone, onAssign, onUpdateTaskDetails, onDeleteTask, onAddTask }: Props) {
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(area.name);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -34,6 +37,8 @@ export default function AreaCard({ area, tasks, profiles, projects, isAdmin, onR
     if (name.trim() && name.trim() !== area.name) onRename(name.trim());
     setEditingName(false);
   }
+
+  const openCount = tasks.filter((t) => !t.done).length;
 
   return (
     <div className="bg-card border rounded-2xl p-4 flex flex-col gap-3">
@@ -60,12 +65,31 @@ export default function AreaCard({ area, tasks, profiles, projects, isAdmin, onR
             )}
           </h3>
         )}
-        <span className="text-xs text-muted-foreground shrink-0">{tasks.length}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-muted-foreground">{openCount}/{tasks.length}</span>
+          {isAdmin && (
+            <button
+              onClick={() => { if (confirm(`Bereich "${area.name}" wirklich löschen? Alle Aufgaben darin (in allen Wochen) werden entfernt.`)) onDeleteArea(); }}
+              className="text-muted-foreground hover:text-destructive"
+              title="Bereich löschen"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
         {tasks.map((task) => (
-          <TaskRow key={task.id} task={task} profiles={profiles} onToggleDone={onToggleDone} onAssign={onAssign} />
+          <TaskRow
+            key={task.id}
+            task={task}
+            profiles={profiles}
+            onToggleDone={onToggleDone}
+            onAssign={onAssign}
+            onUpdateDetails={onUpdateTaskDetails}
+            onDelete={onDeleteTask}
+          />
         ))}
         {tasks.length === 0 && !showAddTask && (
           <p className="text-xs text-muted-foreground py-1">Keine Aufgaben</p>

@@ -114,12 +114,37 @@ export default function JourfixClient({
     if (error) alert(`Umbenennen fehlgeschlagen: ${error.message}`);
   }
 
+  async function handleDeleteArea(areaId: string) {
+    const supabase = createClient();
+    markLocalChange();
+    setAreas((prev) => prev.filter((a) => a.id !== areaId));
+    setTasks((prev) => prev.filter((t) => t.area_id !== areaId));
+    const { error } = await supabase.from("jourfix_areas").delete().eq("id", areaId);
+    if (error) { alert(`Bereich konnte nicht gelöscht werden: ${error.message}`); router.refresh(); }
+  }
+
   async function handleToggleDone(taskId: string, done: boolean) {
     const supabase = createClient();
     markLocalChange();
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, done } : t)));
     const { error } = await supabase.from("jourfix_tasks").update({ done }).eq("id", taskId);
     if (error) alert(`Aufgabe konnte nicht aktualisiert werden: ${error.message}`);
+  }
+
+  async function handleUpdateTaskDetails(taskId: string, details: string) {
+    const supabase = createClient();
+    markLocalChange();
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, details } : t)));
+    const { error } = await supabase.from("jourfix_tasks").update({ details }).eq("id", taskId);
+    if (error) alert(`Details konnten nicht gespeichert werden: ${error.message}`);
+  }
+
+  async function handleDeleteTask(taskId: string) {
+    const supabase = createClient();
+    markLocalChange();
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    const { error } = await supabase.from("jourfix_tasks").delete().eq("id", taskId);
+    if (error) { alert(`Aufgabe konnte nicht gelöscht werden: ${error.message}`); router.refresh(); }
   }
 
   async function handleAssign(taskId: string, assigneeId: string | null) {
@@ -310,8 +335,11 @@ export default function JourfixClient({
                 projects={projects}
                 isAdmin={isAdmin}
                 onRename={(name) => handleRenameArea(area.id, name)}
+                onDeleteArea={() => handleDeleteArea(area.id)}
                 onToggleDone={handleToggleDone}
                 onAssign={handleAssign}
+                onUpdateTaskDetails={handleUpdateTaskDetails}
+                onDeleteTask={handleDeleteTask}
                 onAddTask={(params) => handleAddTask({ ...params, areaId: area.id })}
               />
             ))}

@@ -90,6 +90,7 @@ export interface JourfixTask {
   week_id: string;
   area_id: string;
   title: string;
+  details: string | null;
   assignee_id: string | null;
   done: boolean;
   carried_over_count: number;
