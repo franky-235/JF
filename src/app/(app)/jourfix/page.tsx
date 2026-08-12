@@ -20,20 +20,19 @@ export default async function JourfixPage({
   } = await supabase.auth.getUser();
 
   const currentWeekStart = mondayOf(new Date());
-
-  // Self-heal: ensure the current week exists even if the cron job hasn't run yet.
-  await supabase.rpc("jourfix_ensure_week", { p_week_start: currentWeekStart });
-
   const selectedWeekStart = week ?? currentWeekStart;
 
-  const [{ data: profile }, { data: weeks }, { data: areas }, { data: profiles }, { data: projects }] =
+  const weeksQuery = () =>
+    supabase
+      .from("jourfix_weeks")
+      .select("*, jourfix_week_participants(profile:profiles(id, full_name, avatar_url, role, created_at))")
+      .order("week_start", { ascending: false })
+      .limit(12);
+
+  const [{ data: profile }, { data: weeksRaw }, { data: areas }, { data: profiles }, { data: projects }] =
     await Promise.all([
       user ? supabase.from("profiles").select("*").eq("id", user.id).single() : Promise.resolve({ data: null }),
-      supabase
-        .from("jourfix_weeks")
-        .select("*, jourfix_week_participants(profile:profiles(id, full_name, avatar_url, role, created_at))")
-        .order("week_start", { ascending: false })
-        .limit(12),
+      weeksQuery(),
       supabase.from("jourfix_areas").select("*").order("position"),
       supabase.from("profiles").select("*"),
       supabase
@@ -42,7 +41,16 @@ export default async function JourfixPage({
         .order("name"),
     ]);
 
-  const weeksWithParticipants = (weeks ?? []).map((w: any) => ({
+  let weeks = weeksRaw ?? [];
+
+  // Self-heal: only hit the RPC (and re-fetch) if the current week is actually missing.
+  if (!weeks.some((w) => w.week_start === currentWeekStart)) {
+    await supabase.rpc("jourfix_ensure_week", { p_week_start: currentWeekStart });
+    const { data: refreshed } = await weeksQuery();
+    weeks = refreshed ?? [];
+  }
+
+  const weeksWithParticipants = weeks.map((w: any) => ({
     ...w,
     participants: (w.jourfix_week_participants ?? []).map((p: any) => p.profile).filter(Boolean),
   }));
