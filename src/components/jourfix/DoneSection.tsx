@@ -27,6 +27,7 @@ interface Props {
   onDeleteTask: (task: JourfixTask) => void;
   onLinked: (taskId: string) => void;
   onChangeCustomer: (task: JourfixTask, customerId: string) => void;
+  onTogglePipeline: (task: JourfixTask, on: boolean) => void;
 }
 
 /** Feste Sektion am Ende der Liste: alle erledigten Aufgaben der Woche, mit ihrer Ursprungskategorie. */
@@ -47,6 +48,7 @@ export default function DoneSection({
   onDeleteTask,
   onLinked,
   onChangeCustomer,
+  onTogglePipeline,
 }: Props) {
   const [collapsed, setCollapsed] = useState(true);
 
@@ -117,6 +119,7 @@ export default function DoneSection({
                     topicSuggestions={topicSuggestionsByArea.get(task.area_id) ?? []}
                     customers={customers}
                     onChangeCustomer={onChangeCustomer}
+                  onTogglePipeline={onTogglePipeline}
                   />
                 );
               })}

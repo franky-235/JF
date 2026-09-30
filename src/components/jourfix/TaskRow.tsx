@@ -54,6 +54,8 @@ interface Props {
   topicSuggestions: string[];
   customers: { id: string; name: string }[];
   onChangeCustomer: (task: JourfixTask, customerId: string) => void;
+  /** Haken „In Pipeline bearbeiten“ (nur Kategorie „Kunden“) */
+  onTogglePipeline: (task: JourfixTask, on: boolean) => void;
 }
 
 export default function TaskRow({
@@ -75,6 +77,7 @@ export default function TaskRow({
   topicSuggestions,
   customers,
   onChangeCustomer,
+  onTogglePipeline,
 }: Props) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -184,6 +187,13 @@ export default function TaskRow({
           )}
           {!editingTitle && (
             <div className="flex items-center gap-1 shrink-0">
+              {variant === "customer" && (
+                <PipelineToggle
+                  on={!!task.customer_item_id}
+                  disabled={!(task.customer_id ?? task.customer_item?.customer_id)}
+                  onChange={(on) => onTogglePipeline(task, on)}
+                />
+              )}
               {notes.length > 0 && (
                 <button
                   onClick={() => setExpanded((v) => !v)}
@@ -364,6 +374,32 @@ function TopicField({
   );
 }
 
+function PipelineToggle({ on, disabled, onChange }: { on: boolean; disabled: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <button
+      role="checkbox"
+      aria-checked={on}
+      disabled={disabled}
+      onClick={() => onChange(!on)}
+      title={disabled ? "Zuerst einen Kunden wählen" : on ? "Wird in der Pipeline bearbeitet – Haken entfernen, um den Punkt dort zu löschen" : "In Pipeline bearbeiten"}
+      className={cn(
+        "flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full border transition-colors disabled:opacity-40",
+        on ? "border-indigo-200 bg-indigo-50 text-indigo-700 font-medium" : "border-slate-200 text-slate-400 hover:text-indigo-700 hover:border-indigo-200"
+      )}
+    >
+      <span
+        className={cn(
+          "w-3 h-3 rounded-[3px] border flex items-center justify-center",
+          on ? "bg-indigo-500 border-indigo-500 text-white" : "border-slate-300"
+        )}
+      >
+        {on && <Check className="w-2.5 h-2.5" strokeWidth={3} />}
+      </span>
+      Pipeline
+    </button>
+  );
+}
+
 function CustomerPicker({
   task,
   customers,
@@ -375,8 +411,8 @@ function CustomerPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const current = task.customer_item?.customer_id ?? null;
-  const name = task.customer_item?.customers?.name ?? null;
+  const current = task.customer_id ?? task.customer_item?.customer_id ?? null;
+  const name = task.customer?.name ?? task.customer_item?.customers?.name ?? null;
   const filtered = customers.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()));
 
   return (

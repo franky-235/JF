@@ -149,18 +149,22 @@ export default function PipelineClient({
     }));
   }
 
-  async function handleAddItem(customerId: string, title: string, assigneeId: string | null, dueDate: string | null) {
+  async function handleAddItem(customerId: string, title: string, assigneeId: string | null, dueDate: string | null, showInJourfix: boolean) {
     const supabase = createClient();
     markLocalChange();
     const customer = customers.find((c) => c.id === customerId);
     const position = (customer?.customer_items ?? []).reduce((m, i) => Math.max(m, i.position + 1), 0);
     const { data, error } = await supabase
       .from("customer_items")
-      .insert({ customer_id: customerId, title, assignee_id: assigneeId, due_date: dueDate, position })
+      .insert({ customer_id: customerId, title, assignee_id: assigneeId, due_date: dueDate, position, show_in_jourfix: showInJourfix })
       .select("id")
       .single();
     if (error) return fail("Punkt konnte nicht angelegt werden", error);
     await reloadItem(data.id);
+    if (showInJourfix) {
+      toast.success("Im Jour Fixe (Kunden) angelegt");
+      if (!currentWeekId) router.refresh();
+    }
   }
 
   async function handleUpdateItem(customerId: string, itemId: string, patch: ItemPatch) {
@@ -189,13 +193,27 @@ export default function PipelineClient({
     if (error) fail("Punkt konnte nicht gelöscht werden", error);
   }
 
-  async function handleAddToJourfix(itemId: string) {
+  /** Haken „In JF anzeigen“ – der Datenbank-Trigger sortiert ein bzw. entfernt. */
+  async function handleToggleJourfix(item: PipelineItem, on: boolean) {
+    if (!on) {
+      const ok = await confirmDialog({
+        title: "Nicht mehr im Jour Fixe anzeigen?",
+        description: "Der Punkt wird aus der aktuellen Jour-Fixe-Woche entfernt. Frühere Wochen bleiben als Verlauf erhalten.",
+        confirmLabel: "Entfernen",
+        destructive: true,
+      });
+      if (!ok) return;
+    }
     const supabase = createClient();
     markLocalChange();
-    const { error } = await supabase.rpc("jourfix_add_customer_item", { p_item_id: itemId, p_week_id: currentWeekId });
-    if (error) return fail("Übernahme in den Jour Fixe fehlgeschlagen", error);
-    toast.success("In den Jour Fixe der aktuellen Woche übernommen");
-    await reloadItem(itemId);
+    patchCustomer(item.customer_id, (c) => ({
+      ...c,
+      customer_items: c.customer_items.map((i) => (i.id === item.id ? { ...i, show_in_jourfix: on } : i)),
+    }));
+    const { error } = await supabase.from("customer_items").update({ show_in_jourfix: on }).eq("id", item.id);
+    if (error) return fail("Änderung konnte nicht gespeichert werden", error);
+    if (on) toast.success("Im Jour Fixe (Kunden) angezeigt");
+    await reloadItem(item.id);
     if (!currentWeekId) router.refresh();
   }
 
@@ -327,10 +345,10 @@ export default function PipelineClient({
           currentWeekId={currentWeekId}
           onClose={() => openPanel(null)}
           onStageChange={(stage) => handleStageChange(panelCustomer.id, stage)}
-          onAddItem={(title, assigneeId, dueDate) => handleAddItem(panelCustomer.id, title, assigneeId, dueDate)}
+          onAddItem={(title, assigneeId, dueDate, show) => handleAddItem(panelCustomer.id, title, assigneeId, dueDate, show)}
           onUpdateItem={(itemId, patch) => handleUpdateItem(panelCustomer.id, itemId, patch)}
           onDeleteItem={(item) => handleDeleteItem(panelCustomer.id, item)}
-          onAddToJourfix={handleAddToJourfix}
+          onToggleJourfix={handleToggleJourfix}
           onReloadItem={reloadItem}
         />
       )}
@@ -417,7 +435,7 @@ function CustomerCard({ customer, onOpen, overlay }: { customer: PipelineCustome
             <li key={i.id} className="flex items-center gap-1.5 text-xs text-slate-600">
               <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
               <span className="truncate flex-1">{i.title}</span>
-              {i.jourfix_tasks.length > 0 && <CalendarClock className="w-3 h-3 text-indigo-400 shrink-0" aria-label="Im Jour Fixe" />}
+              {i.show_in_jourfix && <CalendarClock className="w-3 h-3 text-indigo-400 shrink-0" aria-label="Im Jour Fixe" />}
               {i.linked_task && <Check className="w-3 h-3 text-cyan-500 shrink-0" aria-label="Im Board" />}
             </li>
           ))}

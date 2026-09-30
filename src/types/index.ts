@@ -36,6 +36,8 @@ export interface CustomerItem {
   due_date: string | null;
   linked_task_id: string | null;
   position: number;
+  /** Haken „In JF anzeigen“ */
+  show_in_jourfix: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -125,6 +127,9 @@ export interface JourfixTask {
   origin_task_id: string | null;
   linked_task_id: string | null;
   customer_item_id: string | null;
+  /** Kunde (Kategorie „Kunden“), unabhängig davon, ob ein Pipeline-Punkt verknüpft ist */
+  customer_id: string | null;
+  customer?: { name: string } | null;
   /** Verbindet alle Wochen-Kopien einer Aufgabe (Notizen-Verlauf) */
   thread_id: string;
   thread_created_at: string;

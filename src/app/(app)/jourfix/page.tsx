@@ -52,6 +52,7 @@ export default async function JourfixPage({
         .from("customer_items")
         .select("id, title, customer_id, customers(name), jourfix_tasks(week_id)")
         .eq("done", false)
+        .eq("show_in_jourfix", false)
         .order("position"),
     ]);
 

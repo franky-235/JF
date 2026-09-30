@@ -5,7 +5,7 @@ import type { JourfixTask } from "@/types";
 export type { BoardProjectOption as ProjectOption } from "@/components/BoardLinkButton";
 
 export const JOURFIX_TASK_SELECT =
-  "*, assignee:assignee_id(*), linked_task:tasks(id, title, project_id), customer_item:customer_items(id, customer_id, customers(name))";
+  "*, assignee:assignee_id(*), linked_task:tasks(id, title, project_id), customer_item:customer_items(id, customer_id, customers(name)), customer:customers(name)";
 
 /** Spaltenbreiten der Listenansicht (Kopfzeile und Zeilen teilen sie). */
 export const colWidths = {

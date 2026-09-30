@@ -18,6 +18,8 @@ export type NewTaskParams = {
   columnId?: string;
   /** Nur in der Kategorie „Kunden“: legt zusätzlich einen Kundenpunkt an */
   customerId?: string;
+  /** Kategorie „Kunden“: Haken „In Pipeline bearbeiten“ */
+  inPipeline?: boolean;
 };
 
 interface Props {
@@ -42,6 +44,7 @@ export default function AddTaskForm({ profiles, projects, customers, topicSugges
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   const [columnId, setColumnId] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [inPipeline, setInPipeline] = useState(false);
 
   const columns = useMemo(() => {
     const project = projects.find((p) => p.id === projectId);
@@ -57,6 +60,7 @@ export default function AddTaskForm({ profiles, projects, customers, topicSugges
     if (customers && !customerId) return;
     onSubmit({
       customerId: customers ? customerId : undefined,
+      inPipeline: customers ? inPipeline : undefined,
       topic: customers ? null : topic.trim() || null,
       title: title.trim(),
       assigneeId,
@@ -149,6 +153,18 @@ export default function AddTaskForm({ profiles, projects, customers, topicSugges
         >
           <Link2 className="w-3.5 h-3.5" /> Board
         </button>
+        {customers && (
+          <label
+            className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded-md border cursor-pointer select-none",
+              inPipeline ? "border-indigo-200 bg-indigo-50 text-indigo-700 font-medium" : "border-slate-200 hover:bg-white"
+            )}
+            title="Legt beim Kunden in der Pipeline einen offenen Punkt an"
+          >
+            <input type="checkbox" checked={inPipeline} onChange={(e) => setInPipeline(e.target.checked)} className="accent-indigo-500" />
+            In Pipeline bearbeiten
+          </label>
+        )}
       </div>
 
       {linkToBoard && (

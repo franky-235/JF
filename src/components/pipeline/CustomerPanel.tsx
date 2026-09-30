@@ -19,10 +19,10 @@ interface Props {
   currentWeekId: string | null;
   onClose: () => void;
   onStageChange: (stage: PipelineStage) => void;
-  onAddItem: (title: string, assigneeId: string | null, dueDate: string | null) => Promise<void>;
+  onAddItem: (title: string, assigneeId: string | null, dueDate: string | null, showInJourfix: boolean) => Promise<void>;
   onUpdateItem: (itemId: string, patch: Partial<Pick<PipelineItem, "title" | "done" | "assignee_id" | "due_date">>) => void;
   onDeleteItem: (item: PipelineItem) => void;
-  onAddToJourfix: (itemId: string) => Promise<void>;
+  onToggleJourfix: (item: PipelineItem, on: boolean) => Promise<void>;
   onReloadItem: (itemId: string) => void;
 }
 
@@ -36,7 +36,7 @@ export default function CustomerPanel({
   onAddItem,
   onUpdateItem,
   onDeleteItem,
-  onAddToJourfix,
+  onToggleJourfix,
   onReloadItem,
 }: Props) {
   const [showDone, setShowDone] = useState(false);
@@ -125,10 +125,9 @@ export default function CustomerPanel({
                   profiles={profiles}
                   projects={projects}
                   inCurrentWeek={!!currentWeekId && (item.jourfix_tasks ?? []).some((j) => j.week_id === currentWeekId)}
-                  inAnyWeek={(item.jourfix_tasks ?? []).length > 0}
                   onUpdate={(patch) => onUpdateItem(item.id, patch)}
                   onDelete={() => onDeleteItem(item)}
-                  onAddToJourfix={() => onAddToJourfix(item.id)}
+                  onToggleJourfix={(on) => onToggleJourfix(item, on)}
                   onLinked={() => onReloadItem(item.id)}
                 />
               ))}
@@ -152,20 +151,18 @@ function ItemRow({
   profiles,
   projects,
   inCurrentWeek,
-  inAnyWeek,
   onUpdate,
   onDelete,
-  onAddToJourfix,
+  onToggleJourfix,
   onLinked,
 }: {
   item: PipelineItem;
   profiles: Profile[];
   projects: BoardProjectOption[];
   inCurrentWeek: boolean;
-  inAnyWeek: boolean;
   onUpdate: (patch: Partial<Pick<PipelineItem, "title" | "done" | "assignee_id" | "due_date">>) => void;
   onDelete: () => void;
-  onAddToJourfix: () => Promise<void>;
+  onToggleJourfix: (on: boolean) => Promise<void>;
   onLinked: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -243,25 +240,30 @@ function ItemRow({
           {item.due_date && overdue && <span className="font-medium">überfällig</span>}
         </label>
 
-        {inCurrentWeek ? (
-          <Link
-            href="/jourfix"
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium hover:bg-indigo-100"
-          >
-            <Check className="w-3 h-3" /> Im Jour Fixe
+        <label
+          className={cn(
+            "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full border cursor-pointer select-none",
+            item.show_in_jourfix ? "border-indigo-200 bg-indigo-50 text-indigo-700 font-medium" : "border-slate-200 text-slate-500 hover:text-indigo-700",
+            adding && "opacity-50 pointer-events-none"
+          )}
+          title="Punkt automatisch im Kundenbereich des Jour Fixe anzeigen, bis er erledigt ist"
+        >
+          {adding ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <input
+              type="checkbox"
+              checked={item.show_in_jourfix}
+              onChange={async (e) => { setAdding(true); await onToggleJourfix(e.target.checked); setAdding(false); }}
+              className="accent-indigo-500 w-3 h-3"
+            />
+          )}
+          In JF anzeigen
+        </label>
+        {item.show_in_jourfix && inCurrentWeek && (
+          <Link href="/jourfix" className="inline-flex items-center gap-1 text-indigo-600 hover:underline" title="Zum Jour Fixe">
+            <CalendarClock className="w-3 h-3" /> öffnen
           </Link>
-        ) : (
-          !item.done && (
-            <button
-              onClick={async () => { setAdding(true); await onAddToJourfix(); setAdding(false); }}
-              disabled={adding}
-              className="inline-flex items-center gap-1 text-slate-500 hover:text-indigo-700 disabled:opacity-50"
-              title={inAnyWeek ? "Stand bereits in einer früheren Woche – in die aktuelle Woche übernehmen" : "In den aktuellen Jour Fixe übernehmen"}
-            >
-              {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarClock className="w-3.5 h-3.5" />}
-              In Jour Fixe
-            </button>
-          )
         )}
 
         {item.linked_task ? (
@@ -279,9 +281,10 @@ function NewItemForm({
   onAdd,
 }: {
   profiles: Profile[];
-  onAdd: (title: string, assigneeId: string | null, dueDate: string | null) => Promise<void>;
+  onAdd: (title: string, assigneeId: string | null, dueDate: string | null, showInJourfix: boolean) => Promise<void>;
 }) {
   const [title, setTitle] = useState("");
+  const [showInJourfix, setShowInJourfix] = useState(false);
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
@@ -289,13 +292,13 @@ function NewItemForm({
   async function submit() {
     if (!title.trim() || saving) return;
     setSaving(true);
-    await onAdd(title.trim(), assigneeId, dueDate || null);
+    await onAdd(title.trim(), assigneeId, dueDate || null, showInJourfix);
     setSaving(false);
     setTitle("");
   }
 
   return (
-    <div className="border-t border-slate-200 px-6 py-3 bg-slate-50 flex items-center gap-2">
+    <div className="border-t border-slate-200 px-6 py-3 bg-slate-50 flex flex-wrap items-center gap-2">
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -311,6 +314,10 @@ function NewItemForm({
         aria-label="Fällig am"
       />
       <AssigneePicker assignee={profiles.find((p) => p.id === assigneeId) ?? null} profiles={profiles} onChange={setAssigneeId} size={28} />
+      <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none" title="Automatisch im Kundenbereich des Jour Fixe anzeigen">
+        <input type="checkbox" checked={showInJourfix} onChange={(e) => setShowInJourfix(e.target.checked)} className="accent-indigo-500" />
+        In JF anzeigen
+      </label>
       <button
         onClick={submit}
         disabled={!title.trim() || saving}

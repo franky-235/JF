@@ -40,6 +40,7 @@ interface Props {
   noteHandlers: NoteHandlers;
   topicSuggestions: string[];
   onChangeCustomer: (task: JourfixTask, customerId: string) => void;
+  onTogglePipeline: (task: JourfixTask, on: boolean) => void;
 }
 
 /** Eine Kategorie als Abschnitt der Jourfix-Liste. */
@@ -68,6 +69,7 @@ export default function AreaCard({
   noteHandlers,
   topicSuggestions,
   onChangeCustomer,
+  onTogglePipeline,
 }: Props) {
   const isCustomers = area.kind === "customers";
   const [collapsed, setCollapsed] = useState(false);
@@ -209,6 +211,7 @@ export default function AreaCard({
                   topicSuggestions={topicSuggestions}
                   customers={customers}
                   onChangeCustomer={onChangeCustomer}
+                  onTogglePipeline={onTogglePipeline}
                 />
               ))}
             </SortableContext>

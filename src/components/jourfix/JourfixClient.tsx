@@ -210,7 +210,13 @@ export default function JourfixClient({
   async function handleDeleteTask(task: JourfixTask) {
     const ok = await confirmDialog({
       title: `Aufgabe „${task.title}“ löschen?`,
-      description: task.linked_task ? "Die verknüpfte Board-Aufgabe bleibt erhalten." : undefined,
+      description:
+        [
+          task.customer_item_id ? "Der Punkt bleibt in der Pipeline, „In JF anzeigen“ wird dort deaktiviert." : null,
+          task.linked_task ? "Die verknüpfte Board-Aufgabe bleibt erhalten." : null,
+        ]
+          .filter(Boolean)
+          .join(" ") || undefined,
       confirmLabel: "Löschen",
       destructive: true,
     });
@@ -219,7 +225,11 @@ export default function JourfixClient({
     markLocalChange();
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
     const { error } = await supabase.from("jourfix_tasks").delete().eq("id", task.id);
-    if (error) fail("Aufgabe konnte nicht gelöscht werden", error);
+    if (error) return fail("Aufgabe konnte nicht gelöscht werden", error);
+    if (task.customer_item_id) {
+      // sonst würde der Punkt beim nächsten Wochenwechsel wieder einsortiert
+      await supabase.from("customer_items").update({ show_in_jourfix: false }).eq("id", task.customer_item_id);
+    }
   }
 
   /** Lädt eine Aufgabe inkl. Verknüpfungen neu und übernimmt sie in den State. */
@@ -235,44 +245,29 @@ export default function JourfixClient({
     const supabase = createClient();
     markLocalChange();
 
-    let taskId: string;
-    if (params.customerId) {
-      // Kategorie „Kunden“: erst Kundenpunkt anlegen, dann in diese Woche übernehmen
-      const { data: item, error: itemError } = await supabase
-        .from("customer_items")
-        .insert({
-          customer_id: params.customerId,
-          title: params.title,
-          assignee_id: params.assigneeId,
-          due_date: params.dueDate,
-          created_by: currentUserId,
-        })
-        .select("id")
-        .single();
-      if (itemError) return fail("Kundenpunkt konnte nicht angelegt werden", itemError);
-      const { data: id, error } = await supabase.rpc("jourfix_add_customer_item", { p_item_id: item.id, p_week_id: selectedWeek.id });
-      if (error) return fail("Kundenpunkt konnte nicht übernommen werden", error);
-      taskId = id as string;
-      if (params.priority !== "medium") await supabase.from("jourfix_tasks").update({ priority: params.priority }).eq("id", taskId);
-    } else {
-      const position = tasks.filter((t) => t.area_id === areaId).reduce((max, t) => Math.max(max, t.position + 1), 0);
-      const { data, error } = await supabase
-        .from("jourfix_tasks")
-        .insert({
-          week_id: selectedWeek.id,
-          area_id: areaId,
-          topic: params.topic,
-          title: params.title,
-          assignee_id: params.assigneeId,
-          due_date: params.dueDate,
-          priority: params.priority,
-          position,
-          created_by: currentUserId,
-        })
-        .select("id")
-        .single();
-      if (error) return fail("Aufgabe konnte nicht angelegt werden", error);
-      taskId = data.id;
+    const position = tasks.filter((t) => t.area_id === areaId).reduce((max, t) => Math.max(max, t.position + 1), 0);
+    const { data, error } = await supabase
+      .from("jourfix_tasks")
+      .insert({
+        week_id: selectedWeek.id,
+        area_id: areaId,
+        customer_id: params.customerId ?? null,
+        topic: params.topic,
+        title: params.title,
+        assignee_id: params.assigneeId,
+        due_date: params.dueDate,
+        priority: params.priority,
+        position,
+        created_by: currentUserId,
+      })
+      .select("id")
+      .single();
+    if (error) return fail("Aufgabe konnte nicht angelegt werden", error);
+    const taskId: string = data.id;
+
+    if (params.customerId && params.inPipeline) {
+      const { error } = await supabase.rpc("jourfix_link_customer_item", { p_task_id: taskId });
+      if (error) toast.error(`Übernahme in die Pipeline fehlgeschlagen: ${error.message}`);
     }
 
     if (params.linkToBoard && params.columnId) {
@@ -287,6 +282,9 @@ export default function JourfixClient({
     if (!selectedWeek) return;
     const supabase = createClient();
     markLocalChange();
+    // „In JF anzeigen“ aktivieren (sortiert in aktuelle/spätere Wochen ein) und in die angezeigte Woche übernehmen
+    const { error: flagError } = await supabase.from("customer_items").update({ show_in_jourfix: true }).eq("id", itemId);
+    if (flagError) return fail("Kundenpunkt konnte nicht übernommen werden", flagError);
     const { data, error } = await supabase.rpc("jourfix_add_customer_item", { p_item_id: itemId, p_week_id: selectedWeek.id });
     if (error) return fail("Kundenpunkt konnte nicht übernommen werden", error);
     await reloadTask(data as string);
@@ -468,30 +466,36 @@ export default function JourfixClient({
   async function handleChangeCustomer(task: JourfixTask, customerId: string) {
     const supabase = createClient();
     markLocalChange();
+    const { error } = await supabase.from("jourfix_tasks").update({ customer_id: customerId }).eq("thread_id", task.thread_id);
+    if (error) return fail("Kunde konnte nicht geändert werden", error);
     if (task.customer_item_id) {
-      const { error } = await supabase.from("customer_items").update({ customer_id: customerId }).eq("id", task.customer_item_id);
-      if (error) return fail("Kunde konnte nicht geändert werden", error);
+      // verknüpften Pipeline-Punkt mit umhängen
+      const { error: itemError } = await supabase.from("customer_items").update({ customer_id: customerId }).eq("id", task.customer_item_id);
+      if (itemError) return fail("Kunde konnte in der Pipeline nicht geändert werden", itemError);
+    }
+    await reloadTask(task.id);
+  }
+
+  /** Haken „In Pipeline bearbeiten“. */
+  async function handleTogglePipeline(task: JourfixTask, on: boolean) {
+    const supabase = createClient();
+    if (on) {
+      markLocalChange();
+      const { error } = await supabase.rpc("jourfix_link_customer_item", { p_task_id: task.id });
+      if (error) return fail("Übernahme in die Pipeline fehlgeschlagen", error);
+      toast.success("In der Pipeline angelegt");
     } else {
-      // Aufgabe hat noch keinen Kundenpunkt: anlegen und alle Wochen-Kopien verknüpfen
-      const { data: item, error } = await supabase
-        .from("customer_items")
-        .insert({
-          customer_id: customerId,
-          title: task.title,
-          assignee_id: task.assignee_id,
-          due_date: task.due_date,
-          done: task.done,
-          linked_task_id: task.linked_task_id,
-          created_by: currentUserId,
-        })
-        .select("id")
-        .single();
-      if (error) return fail("Kundenpunkt konnte nicht angelegt werden", error);
-      const { error: linkError } = await supabase
-        .from("jourfix_tasks")
-        .update({ customer_item_id: item.id })
-        .eq("thread_id", task.thread_id);
-      if (linkError) return fail("Kunde konnte nicht zugeordnet werden", linkError);
+      if (!task.customer_item_id) return;
+      const ok = await confirmDialog({
+        title: "Aus der Pipeline entfernen?",
+        description: "Der offene Punkt wird beim Kunden gelöscht. Die Aufgabe bleibt im Jour Fixe stehen.",
+        confirmLabel: "Entfernen",
+        destructive: true,
+      });
+      if (!ok) return;
+      markLocalChange();
+      const { error } = await supabase.from("customer_items").delete().eq("id", task.customer_item_id);
+      if (error) return fail("Punkt konnte nicht aus der Pipeline entfernt werden", error);
     }
     await reloadTask(task.id);
     router.refresh();
@@ -765,6 +769,7 @@ export default function JourfixClient({
                       noteHandlers={noteHandlers}
                       topicSuggestions={topicSuggestionsByArea.get(area.id) ?? []}
                       onChangeCustomer={handleChangeCustomer}
+                onTogglePipeline={handleTogglePipeline}
                     />
                   );
                 })}
@@ -791,6 +796,7 @@ export default function JourfixClient({
                 onDeleteTask={handleDeleteTask}
                 onLinked={handleLinked}
                 onChangeCustomer={handleChangeCustomer}
+                onTogglePipeline={handleTogglePipeline}
               />
             </div>
 
