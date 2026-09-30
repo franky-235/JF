@@ -1,5 +1,5 @@
 export type UserRole = "admin" | "member";
-export type ProjectStatus = "active" | "completed" | "archived";
+export type ProjectStatus = "planning" | "active" | "on-hold" | "completed" | "archived";
 export type TaskPriority = "low" | "medium" | "high";
 
 export interface Profile {
