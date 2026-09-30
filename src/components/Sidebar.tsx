@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronRight,
   CalendarClock,
+  Target,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
@@ -26,7 +27,8 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/board", label: "Aufgaben Board", icon: Kanban },
   { href: "/timeline", label: "Zeitplan", icon: GitBranch },
-  { href: "/jourfix", label: "Jourfix", icon: CalendarClock },
+  { href: "/jourfix", label: "Jour Fixe", icon: CalendarClock },
+  { href: "/pipeline", label: "Pipeline", icon: Target },
   { href: "/customers", label: "Kunden", icon: Building2 },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/team", label: "Team", icon: Users },

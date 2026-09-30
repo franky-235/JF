@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarDays, User } from "lucide-react";
+import { CalendarDays, Check, User } from "lucide-react";
 import type { Task, Profile } from "@/types";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -19,9 +19,12 @@ interface Props {
   task: Task & { profiles?: Profile | null };
   onClick?: () => void;
   isDragging?: boolean;
+  done?: boolean;
+  /** Ohne Handler (z.B. Projekt ohne Erledigt-Spalte) wird keine Checkbox angezeigt */
+  onToggleDone?: () => void;
 }
 
-export default function KanbanCard({ task, onClick, isDragging }: Props) {
+export default function KanbanCard({ task, onClick, isDragging, done = false, onToggleDone }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortableDragging } = useSortable({ id: task.id });
 
   const style = {
@@ -42,7 +45,25 @@ export default function KanbanCard({ task, onClick, isDragging }: Props) {
         isDragging && "shadow-xl rotate-2 scale-105"
       )}
     >
-      <p className="text-sm font-medium mb-2 line-clamp-2">{task.title}</p>
+      <div className="flex items-start gap-2 mb-2">
+        {onToggleDone && (
+          <button
+            role="checkbox"
+            aria-checked={done}
+            aria-label={done ? "Wieder öffnen" : "Als erledigt markieren"}
+            onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onToggleDone(); }}
+            className={cn(
+              "mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+              done ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 hover:border-cyan-500"
+            )}
+          >
+            {done && <Check className="w-2.5 h-2.5" strokeWidth={3} />}
+          </button>
+        )}
+        <p className={cn("text-sm font-medium line-clamp-2", done && "line-through text-slate-400")}>{task.title}</p>
+      </div>
 
       <div className="flex items-center justify-between gap-2">
         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${priorityColors[task.priority]}`}>

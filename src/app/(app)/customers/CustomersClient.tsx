@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { Customer } from "@/types";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+import Link from "next/link";
+import { stageMeta } from "@/lib/pipeline";
 
 interface Props {
   customers: (Customer & { projectCount?: number })[];
@@ -156,7 +158,18 @@ export default function CustomersClient({ customers: initial }: Props) {
                         {(c.company || c.name || "?").charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <div className="text-sm font-semibold text-slate-800">{c.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-800">{c.name}</span>
+                          {c.pipeline_stage && (
+                            <Link
+                              href={`/pipeline?customer=${c.id}`}
+                              className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${stageMeta[c.pipeline_stage].badge}`}
+                              title="In der Pipeline öffnen"
+                            >
+                              {stageMeta[c.pipeline_stage].label}
+                            </Link>
+                          )}
+                        </div>
                         {c.company && <div className="text-xs text-slate-400">{c.company}</div>}
                         {(c.projectCount ?? 0) > 0 && (
                           <div className="flex items-center gap-1 mt-0.5">

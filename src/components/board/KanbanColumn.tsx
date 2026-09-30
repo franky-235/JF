@@ -8,11 +8,14 @@ import type { TaskColumn, Task, Profile } from "@/types";
 
 interface Props {
   column: TaskColumn & { tasks: (Task & { profiles: Profile | null })[] };
+  isDone: boolean;
+  canToggle: boolean;
+  onToggleDone: (task: Task) => void;
   onAddTask: () => void;
   onCardClick: (task: Task) => void;
 }
 
-export default function KanbanColumn({ column, onAddTask, onCardClick }: Props) {
+export default function KanbanColumn({ column, isDone, canToggle, onToggleDone, onAddTask, onCardClick }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
@@ -40,7 +43,13 @@ export default function KanbanColumn({ column, onAddTask, onCardClick }: Props) 
       >
         <SortableContext items={column.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {column.tasks.map((task) => (
-            <KanbanCard key={task.id} task={task} onClick={() => onCardClick(task)} />
+            <KanbanCard
+              key={task.id}
+              task={task}
+              done={isDone}
+              onToggleDone={canToggle ? () => onToggleDone(task) : undefined}
+              onClick={() => onCardClick(task)}
+            />
           ))}
         </SortableContext>
         {column.tasks.length === 0 && (

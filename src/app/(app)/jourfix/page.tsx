@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { startOfWeek, format } from "date-fns";
 import JourfixClient from "@/components/jourfix/JourfixClient";
+import { JOURFIX_TASK_SELECT, type OpenCustomerItem } from "@/components/jourfix/utils";
 import type { JourfixArea, JourfixTask, JourfixWeek, Profile } from "@/types";
 
 function mondayOf(date: Date) {
@@ -29,8 +30,15 @@ export default async function JourfixPage({
       .order("week_start", { ascending: false })
       .limit(12);
 
-  const [{ data: profile }, { data: weeksRaw }, { data: areas }, { data: profiles }, { data: projects }] =
-    await Promise.all([
+  const [
+    { data: profile },
+    { data: weeksRaw },
+    { data: areas },
+    { data: profiles },
+    { data: projects },
+    { data: customers },
+    { data: openCustomerItems },
+  ] = await Promise.all([
       user ? supabase.from("profiles").select("*").eq("id", user.id).single() : Promise.resolve({ data: null }),
       weeksQuery(),
       supabase.from("jourfix_areas").select("*").order("position"),
@@ -39,6 +47,12 @@ export default async function JourfixPage({
         .from("projects")
         .select("id, name, task_columns(id, title, position)")
         .order("name"),
+      supabase.from("customers").select("id, name").order("name"),
+      supabase
+        .from("customer_items")
+        .select("id, title, customer_id, customers(name), jourfix_tasks(week_id)")
+        .eq("done", false)
+        .order("position"),
     ]);
 
   let weeks = weeksRaw ?? [];
@@ -60,8 +74,9 @@ export default async function JourfixPage({
   const { data: tasks } = selectedWeek
     ? await supabase
         .from("jourfix_tasks")
-        .select("*, assignee:assignee_id(*), linked_task:tasks(id, title, project_id)")
+        .select(JOURFIX_TASK_SELECT)
         .eq("week_id", selectedWeek.id)
+        .order("position")
         .order("created_at")
     : { data: [] };
 
@@ -78,6 +93,8 @@ export default async function JourfixPage({
       tasks={(tasks ?? []) as JourfixTask[]}
       profiles={(profiles ?? []) as Profile[]}
       projects={(projects ?? []) as { id: string; name: string; task_columns: { id: string; title: string; position: number }[] }[]}
+      customers={customers ?? []}
+      openCustomerItems={(openCustomerItems ?? []) as unknown as OpenCustomerItem[]}
     />
   );
 }

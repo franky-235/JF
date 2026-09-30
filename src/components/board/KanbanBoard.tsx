@@ -21,6 +21,11 @@ import TaskModal from "./TaskModal";
 import type { TaskColumn, Task, Profile } from "@/types";
 import { Plus } from "lucide-react";
 
+export function isDoneColumn(title: string) {
+  const t = title.toLowerCase();
+  return t.includes("erledigt") || t.includes("done");
+}
+
 interface Props {
   columns: (TaskColumn & { tasks: (Task & { profiles: Profile | null })[] })[];
   projectId: string;
@@ -121,6 +126,28 @@ export default function KanbanBoard({ columns: initialColumns, projectId, profil
     setTimeout(() => { localSaveRef.current = false; }, 2000);
   }
 
+  /** Checkbox auf der Karte: in die Erledigt-Spalte bzw. zurück in die erste offene Spalte verschieben. */
+  async function handleToggleDone(task: Task) {
+    const fromCol = findColumn(task.id);
+    if (!fromCol) return;
+    const wasDone = isDoneColumn(fromCol.title);
+    const sorted = [...columns].sort((a, b) => a.position - b.position);
+    const target = sorted.find((c) => isDoneColumn(c.title) !== wasDone);
+    if (!target) return;
+    localSaveRef.current = true;
+    setColumns((prev) => prev.map((col) => {
+      if (col.id === fromCol.id) return { ...col, tasks: col.tasks.filter((t) => t.id !== task.id) };
+      if (col.id === target.id) return { ...col, tasks: [...col.tasks, { ...(fromCol.tasks.find((t) => t.id === task.id)!), column_id: target.id }] };
+      return col;
+    }) as typeof prev);
+    const supabase = createClient();
+    await supabase.from("tasks").update({ column_id: target.id, position: 9999 }).eq("id", task.id);
+    setTimeout(() => { localSaveRef.current = false; }, 2000);
+  }
+
+  const hasDoneColumn = columns.some((c) => isDoneColumn(c.title));
+  const hasOpenColumn = columns.some((c) => !isDoneColumn(c.title));
+
   async function handleAddColumn() {
     if (!newColumnTitle.trim()) return;
     const supabase = createClient();
@@ -165,7 +192,15 @@ export default function KanbanBoard({ columns: initialColumns, projectId, profil
     <div className="flex gap-4 p-6 h-full overflow-x-auto">
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
         {columns.map((col) => (
-          <KanbanColumn key={col.id} column={col} onAddTask={() => openTaskModal(null, col.id)} onCardClick={(task) => openTaskModal(task, col.id)} />
+          <KanbanColumn
+            key={col.id}
+            column={col}
+            isDone={isDoneColumn(col.title)}
+            canToggle={hasDoneColumn && hasOpenColumn}
+            onToggleDone={handleToggleDone}
+            onAddTask={() => openTaskModal(null, col.id)}
+            onCardClick={(task) => openTaskModal(task, col.id)}
+          />
         ))}
         <DragOverlay>
           {activeTask && <KanbanCard task={activeTask} isDragging />}

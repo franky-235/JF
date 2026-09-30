@@ -17,8 +17,30 @@ export interface Customer {
   email: string | null;
   phone: string | null;
   notes: string | null;
+  pipeline_stage: PipelineStage;
+  pipeline_position: number;
+  stage_changed_at: string;
   created_at: string;
   updated_at: string;
+}
+
+export type PipelineStage = "lead" | "erstgespraech" | "angebot" | "verhandlung" | "gewonnen" | "verloren";
+
+export interface CustomerItem {
+  id: string;
+  customer_id: string;
+  title: string;
+  details: string | null;
+  done: boolean;
+  assignee_id: string | null;
+  due_date: string | null;
+  linked_task_id: string | null;
+  position: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Wochen, in denen der Punkt im Jourfix steht */
+  jourfix_tasks?: { id: string; week_id: string }[];
 }
 
 export interface Project {
@@ -73,6 +95,7 @@ export interface JourfixArea {
   id: string;
   name: string;
   position: number;
+  kind: "custom" | "customers";
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -92,13 +115,18 @@ export interface JourfixTask {
   title: string;
   details: string | null;
   assignee_id: string | null;
+  due_date: string | null;
+  priority: "low" | "medium" | "high";
+  position: number;
   done: boolean;
   carried_over_count: number;
   origin_task_id: string | null;
   linked_task_id: string | null;
+  customer_item_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
   assignee?: Profile | null;
+  customer_item?: { id: string; customer_id: string; customers: { name: string } | null } | null;
   linked_task?: { id: string; title: string; project_id: string } | null;
 }
