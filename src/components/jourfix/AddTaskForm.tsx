@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Building2, CalendarDays, Link2 } from "lucide-react";
 import type { Profile } from "@/types";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ import { AssigneePicker, PriorityPicker } from "./TaskRow";
 import type { Priority, ProjectOption } from "./utils";
 
 export type NewTaskParams = {
+  topic: string | null;
   title: string;
   assigneeId: string | null;
   dueDate: string | null;
@@ -24,11 +25,15 @@ interface Props {
   projects: ProjectOption[];
   /** Gesetzt = Kategorie „Kunden“, Kunde ist Pflicht */
   customers?: { id: string; name: string }[];
+  /** Vorschläge für die Spalte „Thema“ */
+  topicSuggestions?: string[];
   onSubmit: (params: NewTaskParams) => void;
   onCancel: () => void;
 }
 
-export default function AddTaskForm({ profiles, projects, customers, onSubmit, onCancel }: Props) {
+export default function AddTaskForm({ profiles, projects, customers, topicSuggestions = [], onSubmit, onCancel }: Props) {
+  const topicListId = useId();
+  const [topic, setTopic] = useState("");
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState("");
@@ -52,6 +57,7 @@ export default function AddTaskForm({ profiles, projects, customers, onSubmit, o
     if (customers && !customerId) return;
     onSubmit({
       customerId: customers ? customerId : undefined,
+      topic: customers ? null : topic.trim() || null,
       title: title.trim(),
       assigneeId,
       dueDate: dueDate || null,
@@ -60,41 +66,60 @@ export default function AddTaskForm({ profiles, projects, customers, onSubmit, o
       projectId: linkToBoard ? projectId : undefined,
       columnId: linkToBoard ? effectiveColumnId : undefined,
     });
-    // Formular für die nächste Aufgabe offen lassen, Titel leeren
+    // Formular für die nächste Aufgabe offen lassen; Thema/Kunde bleiben stehen
     setTitle("");
   }
 
   return (
     <div className="rounded-lg border border-cyan-200 bg-cyan-50/30 p-2 flex flex-col gap-2">
-      {customers && (
-        <label className="flex items-center gap-1.5 text-xs text-slate-500">
-          <Building2 className="w-3.5 h-3.5 shrink-0" />
-          <select
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            className={cn(
-              "flex-1 min-w-0 px-2 py-1.5 border rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ring",
-              customerId ? "border-slate-200 text-slate-700" : "border-amber-300 text-slate-400"
-            )}
-            aria-label="Kunde"
-          >
-            <option value="">Kunde wählen…</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </label>
-      )}
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5">
+        {customers ? (
+          <label className="flex items-center gap-1.5 w-full sm:w-52 shrink-0">
+            <Building2 className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
+            <select
+              autoFocus
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              className={cn(
+                "flex-1 min-w-0 px-2 py-1.5 border rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ring",
+                customerId ? "border-slate-200 text-slate-700" : "border-amber-300 text-slate-400"
+              )}
+              aria-label="Kunde"
+            >
+              <option value="">Kunde wählen…</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <>
+            <input
+              autoFocus
+              list={topicListId}
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && onCancel()}
+              placeholder="Thema"
+              aria-label="Thema"
+              className="w-full sm:w-52 shrink-0 px-2.5 py-1.5 border border-slate-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <datalist id={topicListId}>
+              {topicSuggestions.map((t) => (
+                <option key={t} value={t} />
+              ))}
+            </datalist>
+          </>
+        )}
         <input
-          autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
             if (e.key === "Escape") onCancel();
           }}
-          placeholder="Neue Aufgabe… (Enter zum Speichern)"
+          placeholder={customers ? "ToDo… (Enter zum Speichern)" : "Aufgabe… (Enter zum Speichern)"}
+          aria-label={customers ? "ToDo" : "Aufgabe"}
           className="flex-1 min-w-0 px-2.5 py-1.5 border border-slate-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <AssigneePicker assignee={assignee} profiles={profiles} onChange={setAssigneeId} size={26} />

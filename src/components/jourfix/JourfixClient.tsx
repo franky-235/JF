@@ -32,19 +32,19 @@ import {
   Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { JourfixArea, JourfixTask, JourfixWeek, Profile } from "@/types";
+import type { JourfixArea, JourfixNote, JourfixTask, JourfixWeek, Profile } from "@/types";
 import Avatar from "@/components/Avatar";
 import { Toaster, toast } from "@/components/ui/toast";
 import { ConfirmHost, confirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import WeekTabs from "./WeekTabs";
 import AreaCard from "./AreaCard";
+import DoneSection from "./DoneSection";
 import ParticipantsModal from "./ParticipantsModal";
-import type { TaskPatch } from "./TaskRow";
+import type { NoteHandlers, TaskPatch } from "./TaskRow";
 import type { NewTaskParams } from "./AddTaskForm";
 import {
   JOURFIX_TASK_SELECT,
-  colWidths,
   isOverdue,
   shiftWeek,
   sortByPosition,
@@ -68,13 +68,14 @@ interface Props {
   projects: ProjectOption[];
   customers: { id: string; name: string }[];
   openCustomerItems: OpenCustomerItem[];
+  notes: JourfixNote[];
 }
 
 /** Ordnet `activeId` im Bereich `areaId` vor `beforeId` (oder am Ende) ein und nummeriert neu. */
 function placeTask(list: JourfixTask[], activeId: string, areaId: string, beforeId: string | null) {
   const active = list.find((t) => t.id === activeId);
   if (!active) return list;
-  const target = sortByPosition(list.filter((t) => t.area_id === areaId && t.id !== activeId));
+  const target = sortByPosition(list.filter((t) => t.area_id === areaId && t.id !== activeId && !t.done));
   let idx = beforeId ? target.findIndex((t) => t.id === beforeId) : -1;
   if (idx < 0) idx = target.length;
   target.splice(idx, 0, { ...active, area_id: areaId });
@@ -95,22 +96,24 @@ export default function JourfixClient({
   projects,
   customers,
   openCustomerItems,
+  notes: initialNotes,
 }: Props) {
   const router = useRouter();
   const [areas, setAreas] = useState(initialAreas);
   const [tasks, setTasks] = useState(initialTasks);
+  const [notes, setNotes] = useState(initialNotes);
   const [creatingWeek, setCreatingWeek] = useState(false);
   const [newWeekStart, setNewWeekStart] = useState<string | null>(null);
   const [editingParticipants, setEditingParticipants] = useState(false);
   const [carrying, setCarrying] = useState(false);
   const [onlyMine, setOnlyMine] = useState(false);
-  const [hideDone, setHideDone] = useState(false);
   const [query, setQuery] = useState("");
   const [activeDragTask, setActiveDragTask] = useState<JourfixTask | null>(null);
 
   // Server-Daten nach router.refresh() übernehmen (Realtime, andere Nutzer)
   useEffect(() => setAreas(initialAreas), [initialAreas]);
   useEffect(() => setTasks(initialTasks), [initialTasks]);
+  useEffect(() => setNotes(initialNotes), [initialNotes]);
 
   // ---------- Realtime ----------
   const localChangeUntil = useRef(0);
@@ -136,6 +139,7 @@ export default function JourfixClient({
       .on("postgres_changes", { event: "*", schema: "public", table: "jourfix_tasks", filter }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "jourfix_week_participants", filter }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "jourfix_areas" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "jourfix_notes" }, scheduleRefresh)
       .subscribe();
     return () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
@@ -257,6 +261,7 @@ export default function JourfixClient({
         .insert({
           week_id: selectedWeek.id,
           area_id: areaId,
+          topic: params.topic,
           title: params.title,
           assignee_id: params.assigneeId,
           due_date: params.dueDate,
@@ -292,6 +297,54 @@ export default function JourfixClient({
     markLocalChange();
     await reloadTask(taskId);
   }
+
+  // ---------- Notizen-Verlauf ----------
+  const notesByThread = useMemo(() => {
+    const map = new Map<string, JourfixNote[]>();
+    for (const n of [...notes].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+      const list = map.get(n.thread_id) ?? [];
+      list.push(n);
+      map.set(n.thread_id, list);
+    }
+    return map;
+  }, [notes]);
+
+  const noteHandlers: NoteHandlers = {
+    async onAddNote(task, kind, content) {
+      const supabase = createClient();
+      markLocalChange();
+      const { data, error } = await supabase
+        .from("jourfix_notes")
+        .insert({ thread_id: task.thread_id, week_id: task.week_id, kind, content, author_id: currentUserId })
+        .select()
+        .single();
+      if (error) { toast.error(`Eintrag konnte nicht gespeichert werden: ${error.message}`); return false; }
+      setNotes((prev) => [...prev, data]);
+      return true;
+    },
+    async onUpdateNote(noteId, content) {
+      const supabase = createClient();
+      markLocalChange();
+      const now = new Date().toISOString();
+      setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, content, updated_at: now } : n)));
+      const { error } = await supabase.from("jourfix_notes").update({ content }).eq("id", noteId);
+      if (error) fail("Eintrag konnte nicht geändert werden", error);
+    },
+    async onDeleteNote(note) {
+      const ok = await confirmDialog({
+        title: "Eintrag löschen?",
+        description: "Der Eintrag verschwindet aus dem Verlauf aller Wochen.",
+        confirmLabel: "Löschen",
+        destructive: true,
+      });
+      if (!ok) return;
+      const supabase = createClient();
+      markLocalChange();
+      setNotes((prev) => prev.filter((n) => n.id !== note.id));
+      const { error } = await supabase.from("jourfix_notes").delete().eq("id", note.id);
+      if (error) fail("Eintrag konnte nicht gelöscht werden", error);
+    },
+  };
 
   // ---------- Wochen ----------
   const sortedWeeks = useMemo(() => [...weeks].sort((a, b) => b.week_start.localeCompare(a.week_start)), [weeks]);
@@ -368,11 +421,12 @@ export default function JourfixClient({
 
   // ---------- Filter & Kennzahlen ----------
   const q = query.trim().toLowerCase();
-  const filterActive = onlyMine || hideDone || q.length > 0;
+  const filterActive = onlyMine || q.length > 0;
   const matches = (t: JourfixTask) =>
     (!onlyMine || t.assignee_id === currentUserId) &&
-    (!hideDone || !t.done) &&
-    (!q || t.title.toLowerCase().includes(q) || (t.details ?? "").toLowerCase().includes(q));
+    (!q ||
+      t.title.toLowerCase().includes(q) ||
+      (notesByThread.get(t.thread_id) ?? []).some((n) => n.content.toLowerCase().includes(q)));
 
   const sortedAreas = useMemo(() => [...areas].sort((a, b) => a.position - b.position), [areas]);
   const tasksByArea = useMemo(() => {
@@ -397,6 +451,51 @@ export default function JourfixClient({
     };
   }, [tasks, currentUserId]);
   const pct = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
+
+  const doneTasks = useMemo(() => tasks.filter((t) => t.done), [tasks]);
+  const topicSuggestionsByArea = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const t of tasks) {
+      if (!t.topic) continue;
+      const set = map.get(t.area_id) ?? new Set<string>();
+      set.add(t.topic);
+      map.set(t.area_id, set);
+    }
+    return new Map([...map].map(([k, v]) => [k, [...v].sort((a, b) => a.localeCompare(b))]));
+  }, [tasks]);
+
+  /** Kunde einer Aufgabe in der Kategorie „Kunden“ setzen/ändern. */
+  async function handleChangeCustomer(task: JourfixTask, customerId: string) {
+    const supabase = createClient();
+    markLocalChange();
+    if (task.customer_item_id) {
+      const { error } = await supabase.from("customer_items").update({ customer_id: customerId }).eq("id", task.customer_item_id);
+      if (error) return fail("Kunde konnte nicht geändert werden", error);
+    } else {
+      // Aufgabe hat noch keinen Kundenpunkt: anlegen und alle Wochen-Kopien verknüpfen
+      const { data: item, error } = await supabase
+        .from("customer_items")
+        .insert({
+          customer_id: customerId,
+          title: task.title,
+          assignee_id: task.assignee_id,
+          due_date: task.due_date,
+          done: task.done,
+          linked_task_id: task.linked_task_id,
+          created_by: currentUserId,
+        })
+        .select("id")
+        .single();
+      if (error) return fail("Kundenpunkt konnte nicht angelegt werden", error);
+      const { error: linkError } = await supabase
+        .from("jourfix_tasks")
+        .update({ customer_item_id: item.id })
+        .eq("thread_id", task.thread_id);
+      if (linkError) return fail("Kunde konnte nicht zugeordnet werden", linkError);
+    }
+    await reloadTask(task.id);
+    router.refresh();
+  }
 
   // ---------- Drag & Drop ----------
   const sensors = useSensors(
@@ -471,7 +570,7 @@ export default function JourfixClient({
     const activeTask = tasks.find((t) => t.id === active.id);
     if (!activeTask) return;
     const areaId = activeTask.area_id;
-    let areaList = sortByPosition(tasks.filter((t) => t.area_id === areaId));
+    let areaList = sortByPosition(tasks.filter((t) => t.area_id === areaId && !t.done));
 
     if (over.data.current?.type === "task" && over.id !== active.id) {
       const oldIdx = areaList.findIndex((t) => t.id === active.id);
@@ -480,7 +579,7 @@ export default function JourfixClient({
     }
 
     const orderedIds = areaList.map((t) => t.id);
-    const before = sortByPosition(snapshot.tasks.filter((t) => t.area_id === areaId)).map((t) => t.id);
+    const before = sortByPosition(snapshot.tasks.filter((t) => t.area_id === areaId && !t.done)).map((t) => t.id);
     if (areaId === snapshot.areaId && orderedIds.join() === before.join()) return;
 
     const pos = new Map(orderedIds.map((id, i) => [id, i]));
@@ -589,9 +688,6 @@ export default function JourfixClient({
           <FilterChip active={onlyMine} onClick={() => setOnlyMine((v) => !v)} icon={UserRound}>
             Meine{stats.mine > 0 && <span className="ml-1 tabular-nums opacity-70">{stats.mine}</span>}
           </FilterChip>
-          <FilterChip active={hideDone} onClick={() => setHideDone((v) => !v)} icon={CheckCircle2}>
-            Erledigte ausblenden
-          </FilterChip>
           {filterActive && (
             <span className="text-xs text-slate-400">Sortieren per Drag &amp; Drop ist bei aktivem Filter deaktiviert</span>
           )}
@@ -637,25 +733,16 @@ export default function JourfixClient({
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
           >
-            {/* Spaltenköpfe der Liste */}
-            <div className="hidden sm:flex items-center gap-2 pl-[65px] pr-[41px] pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-              <span className="flex-1">Aufgabe</span>
-              <span className={cn(colWidths.assignee, "shrink-0")}>
-                <span className="hidden lg:inline">Zuständig</span>
-              </span>
-              <span className={cn(colWidths.due, "shrink-0")}>Fällig</span>
-              <span className={cn(colWidths.priority, "shrink-0 hidden md:block")}>Priorität</span>
-              <span className={cn(colWidths.board, "shrink-0 hidden md:block")}>Board</span>
-            </div>
             <SortableContext items={sortedAreas.map((a) => a.id)} strategy={verticalListSortingStrategy}>
               <div className="flex flex-col gap-4">
                 {sortedAreas.map((area) => {
                   const all = tasksByArea.get(area.id) ?? [];
+                  const open = all.filter((t) => !t.done);
                   return (
                     <AreaCard
                       key={area.id}
                       area={area}
-                      tasks={filterActive ? all.filter(matches) : all}
+                      tasks={filterActive ? open.filter(matches) : open}
                       totalCount={all.length}
                       openCount={all.filter((t) => !t.done).length}
                       profiles={profiles}
@@ -672,12 +759,40 @@ export default function JourfixClient({
                       onAddTask={(params) => handleAddTask(area.id, params)}
                       onAddCustomerItem={handleAddCustomerItem}
                       onLinked={handleLinked}
+                      notesByThread={notesByThread}
+                      weeks={weeks}
+                      currentUserId={currentUserId}
+                      noteHandlers={noteHandlers}
+                      topicSuggestions={topicSuggestionsByArea.get(area.id) ?? []}
+                      onChangeCustomer={handleChangeCustomer}
                     />
                   );
                 })}
                 {isAdmin && <AddAreaCard onAdd={handleAddArea} />}
               </div>
             </SortableContext>
+
+            {/* Feste Sektion am Ende: nicht löschbar, ein-/ausklappbar */}
+            <div className="mt-4">
+              <DoneSection
+                tasks={filterActive ? doneTasks.filter(matches) : doneTasks}
+                areas={sortedAreas}
+                profiles={profiles}
+                projects={projects}
+                customers={customers}
+                topicSuggestionsByArea={topicSuggestionsByArea}
+                notesByThread={notesByThread}
+                weeks={weeks}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                noteHandlers={noteHandlers}
+                onToggleDone={handleToggleDone}
+                onUpdateTask={handleUpdateTask}
+                onDeleteTask={handleDeleteTask}
+                onLinked={handleLinked}
+                onChangeCustomer={handleChangeCustomer}
+              />
+            </div>
 
             <DragOverlay dropAnimation={null}>
               {activeDragTask && (

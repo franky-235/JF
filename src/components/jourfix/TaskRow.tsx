@@ -1,29 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import * as Popover from "@radix-ui/react-popover";
 import {
-  AlignLeft,
   Building2,
   CalendarDays,
   Check,
   CheckCircle2,
   ChevronDown,
+  ExternalLink,
   GripVertical,
+  MessageSquareText,
   RotateCw,
   Trash2,
   UserRound,
 } from "lucide-react";
-import type { JourfixTask, Profile } from "@/types";
+import type { JourfixNote, JourfixTask, JourfixWeek, Profile } from "@/types";
 import Avatar from "@/components/Avatar";
 import BoardLinkButton from "@/components/BoardLinkButton";
 import { cn } from "@/lib/utils";
+import NotesTimeline from "./NotesTimeline";
 import { carryMeta, colWidths, formatDue, isOverdue, priorityMeta, type Priority, type ProjectOption } from "./utils";
 
-export type TaskPatch = Partial<Pick<JourfixTask, "title" | "details" | "assignee_id" | "due_date" | "priority">>;
+export type TaskPatch = Partial<Pick<JourfixTask, "topic" | "title" | "assignee_id" | "due_date" | "priority">>;
+
+export type NoteHandlers = {
+  onAddNote: (task: JourfixTask, kind: JourfixNote["kind"], content: string) => Promise<boolean>;
+  onUpdateNote: (noteId: string, content: string) => void;
+  onDeleteNote: (note: JourfixNote) => void;
+};
 
 interface Props {
   task: JourfixTask;
@@ -34,9 +42,40 @@ interface Props {
   onUpdate: (taskId: string, patch: TaskPatch) => void;
   onDelete: (task: JourfixTask) => void;
   onLinked: (taskId: string) => void;
+  notes: JourfixNote[];
+  weeks: JourfixWeek[];
+  currentUserId: string | null;
+  isAdmin: boolean;
+  noteHandlers: NoteHandlers;
+  /** "customer": erste Spalte = Kunde (Kategorie „Kunden“), sonst Thema */
+  variant: "topic" | "customer";
+  /** In „Abgeschlossen“: ursprüngliche Kategorie anzeigen */
+  areaLabel?: string;
+  topicSuggestions: string[];
+  customers: { id: string; name: string }[];
+  onChangeCustomer: (task: JourfixTask, customerId: string) => void;
 }
 
-export default function TaskRow({ task, profiles, projects, sortable, onToggleDone, onUpdate, onDelete, onLinked }: Props) {
+export default function TaskRow({
+  task,
+  profiles,
+  projects,
+  sortable,
+  onToggleDone,
+  onUpdate,
+  onDelete,
+  onLinked,
+  notes,
+  weeks,
+  currentUserId,
+  isAdmin,
+  noteHandlers,
+  variant,
+  areaLabel,
+  topicSuggestions,
+  customers,
+  onChangeCustomer,
+}: Props) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: "task", areaId: task.area_id },
@@ -46,20 +85,14 @@ export default function TaskRow({ task, profiles, projects, sortable, onToggleDo
   const [expanded, setExpanded] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [title, setTitle] = useState(task.title);
-  const [details, setDetails] = useState(task.details ?? "");
-  const [detailsFocused, setDetailsFocused] = useState(false);
 
   useEffect(() => {
     if (!editingTitle) setTitle(task.title);
   }, [task.title, editingTitle]);
-  useEffect(() => {
-    if (!detailsFocused) setDetails(task.details ?? "");
-  }, [task.details, detailsFocused]);
 
   const carry = carryMeta(task.carried_over_count);
   const overdue = isOverdue(task);
   const assignee = profiles.find((p) => p.id === task.assignee_id) ?? null;
-  const customerName = task.customer_item?.customers?.name;
 
   function submitTitle() {
     const next = title.trim();
@@ -68,11 +101,7 @@ export default function TaskRow({ task, profiles, projects, sortable, onToggleDo
     if (next !== task.title) onUpdate(task.id, { title: next });
   }
 
-  function submitDetails() {
-    setDetailsFocused(false);
-    const next = details.trim() ? details : "";
-    if (next !== (task.details ?? "")) onUpdate(task.id, { details: next || null });
-  }
+  const lastNote = notes[notes.length - 1];
 
   return (
     <div
@@ -110,7 +139,24 @@ export default function TaskRow({ task, profiles, projects, sortable, onToggleDo
           {task.done && <Check className="w-3 h-3" strokeWidth={3} />}
         </button>
 
-        {/* Aufgabe */}
+        {/* Thema bzw. Kunde */}
+        <div className={cn(colWidths.lead, "shrink-0 min-w-0 pl-1")}>
+          {areaLabel && (
+            <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-400 truncate">{areaLabel}</span>
+          )}
+          {variant === "customer" ? (
+            <CustomerPicker task={task} customers={customers} onChange={(id) => onChangeCustomer(task, id)} />
+          ) : (
+            <TopicField
+              value={task.topic}
+              suggestions={topicSuggestions}
+              done={task.done}
+              onChange={(topic) => onUpdate(task.id, { topic })}
+            />
+          )}
+        </div>
+
+        {/* Aufgabe bzw. ToDo */}
         <div className="flex-1 min-w-0 flex items-center gap-2 pl-1">
           {editingTitle ? (
             <input
@@ -138,17 +184,20 @@ export default function TaskRow({ task, profiles, projects, sortable, onToggleDo
           )}
           {!editingTitle && (
             <div className="flex items-center gap-1 shrink-0">
-              {customerName && (
-                <Link
-                  href={`/pipeline?customer=${task.customer_item!.customer_id}`}
-                  className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 max-w-[160px]"
-                  title={`Kunde: ${customerName}`}
+              {notes.length > 0 && (
+                <button
+                  onClick={() => setExpanded((v) => !v)}
+                  className={cn(
+                    "flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-full font-medium tabular-nums",
+                    lastNote?.kind === "decision" ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  )}
+                  title={`${notes.length} ${notes.length === 1 ? "Eintrag" : "Einträge"} im Verlauf${lastNote ? ` – zuletzt: ${lastNote.content.slice(0, 80)}` : ""}`}
+                  aria-label={`${notes.length} Notizen anzeigen`}
                 >
-                  <Building2 className="w-3 h-3 shrink-0" />
-                  <span className="truncate">{customerName}</span>
-                </Link>
+                  <MessageSquareText className="w-3 h-3" />
+                  {notes.length}
+                </button>
               )}
-              {task.details && !expanded && <AlignLeft className="w-3 h-3 text-slate-300" aria-label="Hat Details" />}
               {carry && (
                 <span
                   className={cn("flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium", carry.badge)}
@@ -214,17 +263,8 @@ export default function TaskRow({ task, profiles, projects, sortable, onToggleDo
       </div>
 
       {expanded && (
-        <div className="pl-12 pr-4 pb-3 flex flex-col gap-2.5 bg-slate-50/50 border-t border-slate-100">
-          <textarea
-            value={details}
-            onChange={(e) => setDetails(e.target.value)}
-            onFocus={() => setDetailsFocused(true)}
-            onBlur={submitDetails}
-            placeholder="Details, Notizen, Beschlüsse…"
-            rows={3}
-            className="mt-3 w-full px-2.5 py-2 border border-slate-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-          />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+        <div className="pl-12 pr-4 pb-4 bg-slate-50/50 border-t border-slate-100">
+          <div className="pt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
             <label className="flex items-center gap-1.5">
               <CalendarDays className="w-3.5 h-3.5" />
               <input
@@ -244,8 +284,174 @@ export default function TaskRow({ task, profiles, projects, sortable, onToggleDo
               <Trash2 className="w-3.5 h-3.5" /> Löschen
             </button>
           </div>
+          <NotesTimeline
+            task={task}
+            notes={notes}
+            profiles={profiles}
+            weeks={weeks}
+            currentUserId={currentUserId}
+            isAdmin={isAdmin}
+            onAdd={(kind, content) => noteHandlers.onAddNote(task, kind, content)}
+            onUpdate={noteHandlers.onUpdateNote}
+            onDelete={noteHandlers.onDeleteNote}
+          />
         </div>
       )}
+    </div>
+  );
+}
+
+function TopicField({
+  value,
+  suggestions,
+  done,
+  onChange,
+}: {
+  value: string | null;
+  suggestions: string[];
+  done: boolean;
+  onChange: (topic: string | null) => void;
+}) {
+  const listId = useId();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+  useEffect(() => {
+    if (!editing) setDraft(value ?? "");
+  }, [value, editing]);
+
+  function submit() {
+    setEditing(false);
+    const next = draft.trim() || null;
+    if (next !== (value ?? null)) onChange(next);
+  }
+
+  if (editing) {
+    return (
+      <>
+        <input
+          autoFocus
+          list={listId}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={submit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+            if (e.key === "Escape") { setDraft(value ?? ""); setEditing(false); }
+          }}
+          placeholder="Thema…"
+          className="w-full px-1.5 py-0.5 -my-0.5 border border-slate-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        <datalist id={listId}>
+          {suggestions.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
+      </>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      title="Thema bearbeiten"
+      className={cn(
+        "w-full text-left text-sm truncate cursor-text",
+        value ? (done ? "text-slate-400" : "font-medium text-slate-700") : "text-slate-300 hover:text-slate-500"
+      )}
+    >
+      {value || "Thema…"}
+    </button>
+  );
+}
+
+function CustomerPicker({
+  task,
+  customers,
+  onChange,
+}: {
+  task: JourfixTask;
+  customers: { id: string; name: string }[];
+  onChange: (customerId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const current = task.customer_item?.customer_id ?? null;
+  const name = task.customer_item?.customers?.name ?? null;
+  const filtered = customers.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()));
+
+  return (
+    <div className="flex items-center gap-1 min-w-0">
+      <Popover.Root open={open} onOpenChange={setOpen}>
+        <Popover.Trigger asChild>
+          <button
+            className={cn(
+              "flex items-center gap-1.5 min-w-0 text-left text-sm rounded-md",
+              name ? (task.done ? "text-slate-400" : "font-medium text-slate-700 hover:text-indigo-700") : "text-amber-600 hover:text-amber-700"
+            )}
+            title={name ? `Kunde: ${name} – ändern` : "Kunde zuordnen"}
+          >
+            <Building2 className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
+            <span className="truncate">{name ?? "Kunde wählen…"}</span>
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            align="start"
+            sideOffset={6}
+            className="z-50 w-64 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl focus:outline-none"
+          >
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Kunde suchen…"
+              className="w-full mb-1 px-2 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <div className="max-h-60 overflow-y-auto">
+              {filtered.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => { setOpen(false); setQuery(""); if (c.id !== current) onChange(c.id); }}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-700 hover:bg-slate-50",
+                    c.id === current && "bg-indigo-50"
+                  )}
+                >
+                  <span className="truncate flex-1 text-left">{c.name}</span>
+                  {c.id === current && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                </button>
+              ))}
+              {filtered.length === 0 && <p className="px-2 py-3 text-center text-sm text-slate-400">Kein Kunde gefunden</p>}
+            </div>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+      {current && (
+        <Link
+          href={`/pipeline?customer=${current}`}
+          className="p-0.5 text-slate-300 hover:text-indigo-600 opacity-0 group-hover:opacity-100 shrink-0"
+          title="In der Pipeline öffnen"
+          aria-label="In der Pipeline öffnen"
+        >
+          <ExternalLink className="w-3 h-3" />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/** Spaltenköpfe einer Sektion – gleiche Breiten wie die Zeilen. */
+export function ColumnHeader({ lead, main }: { lead: string; main: string }) {
+  return (
+    <div className="hidden sm:flex items-center gap-2 pl-[60px] pr-[40px] py-1.5 border-b border-slate-100 bg-white text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+      <span className={cn(colWidths.lead, "shrink-0 pl-1")}>{lead}</span>
+      <span className="flex-1 pl-1">{main}</span>
+      <span className={cn(colWidths.assignee, "shrink-0")}>
+        <span className="hidden lg:inline">Zuständig</span>
+      </span>
+      <span className={cn(colWidths.due, "shrink-0")}>Fällig</span>
+      <span className={cn(colWidths.priority, "shrink-0 hidden md:block")}>Priorität</span>
+      <span className={cn(colWidths.board, "shrink-0 hidden md:block")}>Board</span>
     </div>
   );
 }

@@ -9,6 +9,7 @@ export const JOURFIX_TASK_SELECT =
 
 /** Spaltenbreiten der Listenansicht (Kopfzeile und Zeilen teilen sie). */
 export const colWidths = {
+  lead: "w-36 lg:w-52",
   assignee: "w-9 lg:w-40",
   due: "w-24",
   priority: "w-20",

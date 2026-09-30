@@ -6,9 +6,9 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import * as Popover from "@radix-ui/react-popover";
 import { Building2, ChevronRight, GripVertical, Inbox, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import type { JourfixArea, JourfixTask, Profile } from "@/types";
+import type { JourfixArea, JourfixNote, JourfixTask, JourfixWeek, Profile } from "@/types";
 import { cn } from "@/lib/utils";
-import TaskRow, { type TaskPatch } from "./TaskRow";
+import TaskRow, { ColumnHeader, type NoteHandlers, type TaskPatch } from "./TaskRow";
 import AddTaskForm, { type NewTaskParams } from "./AddTaskForm";
 import type { OpenCustomerItem, ProjectOption } from "./utils";
 
@@ -34,6 +34,12 @@ interface Props {
   onAddTask: (params: NewTaskParams) => void;
   onAddCustomerItem: (itemId: string) => void;
   onLinked: (taskId: string) => void;
+  notesByThread: Map<string, JourfixNote[]>;
+  weeks: JourfixWeek[];
+  currentUserId: string | null;
+  noteHandlers: NoteHandlers;
+  topicSuggestions: string[];
+  onChangeCustomer: (task: JourfixTask, customerId: string) => void;
 }
 
 /** Eine Kategorie als Abschnitt der Jourfix-Liste. */
@@ -56,6 +62,12 @@ export default function AreaCard({
   onAddTask,
   onAddCustomerItem,
   onLinked,
+  notesByThread,
+  weeks,
+  currentUserId,
+  noteHandlers,
+  topicSuggestions,
+  onChangeCustomer,
 }: Props) {
   const isCustomers = area.kind === "customers";
   const [collapsed, setCollapsed] = useState(false);
@@ -133,7 +145,7 @@ export default function AreaCard({
         )}
 
         <span className="text-xs tabular-nums text-slate-500 shrink-0">
-          {openCount} offen · {totalCount} gesamt
+          {openCount} offen{doneCount > 0 && <> · {doneCount} erledigt</>}
         </span>
         <div className="hidden sm:block w-20 h-1 rounded-full bg-slate-200 overflow-hidden shrink-0" title={`${pct}% erledigt`}>
           <div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${pct}%` }} />
@@ -174,6 +186,7 @@ export default function AreaCard({
 
       {!collapsed && (
         <div ref={setDropRef} className={cn("transition-colors", isOver && "bg-cyan-50/60")}>
+          {tasks.length > 0 && <ColumnHeader lead={isCustomers ? "Kunde" : "Thema"} main={isCustomers ? "ToDo" : "Aufgabe"} />}
           <div className="divide-y divide-slate-100">
             <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               {tasks.map((task) => (
@@ -187,6 +200,15 @@ export default function AreaCard({
                   onUpdate={onUpdateTask}
                   onDelete={onDeleteTask}
                   onLinked={onLinked}
+                  notes={notesByThread.get(task.thread_id) ?? []}
+                  weeks={weeks}
+                  currentUserId={currentUserId}
+                  isAdmin={isAdmin}
+                  noteHandlers={noteHandlers}
+                  variant={isCustomers ? "customer" : "topic"}
+                  topicSuggestions={topicSuggestions}
+                  customers={customers}
+                  onChangeCustomer={onChangeCustomer}
                 />
               ))}
             </SortableContext>
@@ -194,7 +216,11 @@ export default function AreaCard({
 
           {tasks.length === 0 && !showAddTask && (
             <p className="text-xs text-slate-400 py-4 text-center">
-              {totalCount > 0 ? "Keine Aufgaben für diesen Filter" : isCustomers ? "Noch keine Kundenpunkte in dieser Woche" : "Noch keine Aufgaben"}
+              {openCount === 0 && totalCount > 0
+                ? "Alles erledigt – siehe „Abgeschlossen“"
+                : totalCount > 0
+                  ? "Keine Aufgaben für diesen Filter"
+                  : isCustomers ? "Noch keine Kundenpunkte in dieser Woche" : "Noch keine Aufgaben"}
             </p>
           )}
 
@@ -204,6 +230,7 @@ export default function AreaCard({
                 profiles={profiles}
                 projects={projects}
                 customers={isCustomers ? customers : undefined}
+                topicSuggestions={topicSuggestions}
                 onSubmit={onAddTask}
                 onCancel={() => setShowAddTask(false)}
               />

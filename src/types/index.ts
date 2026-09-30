@@ -112,6 +112,8 @@ export interface JourfixTask {
   id: string;
   week_id: string;
   area_id: string;
+  /** Spalte „Thema“ (nicht genutzt in der Kategorie „Kunden“) */
+  topic: string | null;
   title: string;
   details: string | null;
   assignee_id: string | null;
@@ -123,10 +125,24 @@ export interface JourfixTask {
   origin_task_id: string | null;
   linked_task_id: string | null;
   customer_item_id: string | null;
+  /** Verbindet alle Wochen-Kopien einer Aufgabe (Notizen-Verlauf) */
+  thread_id: string;
+  thread_created_at: string;
   created_by: string | null;
   created_at: string;
   updated_at: string;
   assignee?: Profile | null;
   customer_item?: { id: string; customer_id: string; customers: { name: string } | null } | null;
   linked_task?: { id: string; title: string; project_id: string } | null;
+}
+
+export interface JourfixNote {
+  id: string;
+  thread_id: string;
+  week_id: string | null;
+  kind: "note" | "decision";
+  content: string;
+  author_id: string | null;
+  created_at: string;
+  updated_at: string;
 }

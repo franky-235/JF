@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { startOfWeek, format } from "date-fns";
 import JourfixClient from "@/components/jourfix/JourfixClient";
 import { JOURFIX_TASK_SELECT, type OpenCustomerItem } from "@/components/jourfix/utils";
-import type { JourfixArea, JourfixTask, JourfixWeek, Profile } from "@/types";
+import type { JourfixArea, JourfixNote, JourfixTask, JourfixWeek, Profile } from "@/types";
 
 function mondayOf(date: Date) {
   return format(startOfWeek(date, { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -80,6 +80,12 @@ export default async function JourfixPage({
         .order("created_at")
     : { data: [] };
 
+  // Notizen-Verlauf aller Aufgaben dieser Woche (über alle Wochen-Kopien hinweg)
+  const threadIds = [...new Set((tasks ?? []).map((t: any) => t.thread_id as string))];
+  const { data: notes } = threadIds.length
+    ? await supabase.from("jourfix_notes").select("*").in("thread_id", threadIds).order("created_at")
+    : { data: [] };
+
   return (
     <JourfixClient
       key={selectedWeekStart}
@@ -95,6 +101,7 @@ export default async function JourfixPage({
       projects={(projects ?? []) as { id: string; name: string; task_columns: { id: string; title: string; position: number }[] }[]}
       customers={customers ?? []}
       openCustomerItems={(openCustomerItems ?? []) as unknown as OpenCustomerItem[]}
+      notes={(notes ?? []) as JourfixNote[]}
     />
   );
 }
